@@ -1813,7 +1813,7 @@ class CompositeObjectMetaCommand(ObjectMetaCommand):
             self, schema, context, priority=0, force_new=False,
             contained=False, manual=False, table_name=None):
 
-        tabname = table_name if table_name else self.table_name
+        tabname = table_name or self.table_name
 
         if not tabname:
             ctx = context.get(self.__class__)
@@ -3075,17 +3075,14 @@ class PointerMetaCommand(MetaCommand, sd.ObjectCommand,
         new_target = pointer.get_target(schema)
         expr_is_trivial = False
 
-        if conv_expr.irast is not None:
-            ir = conv_expr.irast
-        else:
+        if conv_expr.irast is None:
             conv_expr = self._compile_expr(
                 orig_schema,
                 context,
                 conv_expr,
                 target_as_singleton=target_as_singleton,
             )
-            ir = conv_expr.irast
-
+        ir = conv_expr.irast
         assert ir is not None
 
         if ir.stype != new_target and not is_link:

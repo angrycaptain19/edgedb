@@ -126,9 +126,8 @@ def serialize(obj, *, ctx):
             obj_id = id(obj)
             if obj_id in ctx.memo:
                 return elements.lang.Ref(ref=obj_id, refname=repr(obj))
-            else:
-                ctx.memo.add(obj_id)
-                ctx.keep_alive.append(obj)
+            ctx.memo.add(obj_id)
+            ctx.keep_alive.append(obj)
 
         try:
             return sr(obj, ctx=ctx)
@@ -238,12 +237,10 @@ def serialize_exception(obj, *, ctx):
     if details_context is not None:
         contexts.append(serialize(details_context, ctx=ctx))
 
-    markup = elements.lang.Exception(
+    return elements.lang.Exception(
         class_module=obj.__class__.__module__,
         classname=obj.__class__.__name__, msg=str(obj), contexts=contexts,
         cause=cause, context=context, id=id(obj))
-
-    return markup
 
 
 @serializer.register(exceptions.ExceptionContext)

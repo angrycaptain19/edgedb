@@ -108,35 +108,30 @@ def _ql_typeexpr_to_type(
 def _ql_typename_to_type(
         ql_t: qlast.TypeName, *,
         ctx: context.ContextLevel) -> s_types.Type:
-    if ql_t.subtypes:
-        assert isinstance(ql_t.maintype, qlast.ObjectRef)
-        coll = s_types.Collection.get_class(ql_t.maintype.name)
-        ct: s_types.Type
-
-        if issubclass(coll, s_abc.Tuple):
-            t_subtypes = {}
-            named = False
-            for si, st in enumerate(ql_t.subtypes):
-                if st.name:
-                    named = True
-                    type_name = st.name
-                else:
-                    type_name = str(si)
-
-                t_subtypes[type_name] = ql_typeexpr_to_type(st, ctx=ctx)
-
-            ctx.env.schema, ct = coll.from_subtypes(
-                ctx.env.schema, t_subtypes, {'named': named})
-            return ct
-        else:
-            a_subtypes = []
-            for st in ql_t.subtypes:
-                a_subtypes.append(ql_typeexpr_to_type(st, ctx=ctx))
-
-            ctx.env.schema, ct = coll.from_subtypes(ctx.env.schema, a_subtypes)
-            return ct
-    else:
+    if not ql_t.subtypes:
         return schemactx.get_schema_type(ql_t.maintype, ctx=ctx)
+    assert isinstance(ql_t.maintype, qlast.ObjectRef)
+    coll = s_types.Collection.get_class(ql_t.maintype.name)
+    ct: s_types.Type
+
+    if issubclass(coll, s_abc.Tuple):
+        t_subtypes = {}
+        named = False
+        for si, st in enumerate(ql_t.subtypes):
+            if st.name:
+                named = True
+                type_name = st.name
+            else:
+                type_name = str(si)
+
+            t_subtypes[type_name] = ql_typeexpr_to_type(st, ctx=ctx)
+
+        ctx.env.schema, ct = coll.from_subtypes(
+            ctx.env.schema, t_subtypes, {'named': named})
+    else:
+        a_subtypes = [ql_typeexpr_to_type(st, ctx=ctx) for st in ql_t.subtypes]
+        ctx.env.schema, ct = coll.from_subtypes(ctx.env.schema, a_subtypes)
+    return ct
 
 
 @overload

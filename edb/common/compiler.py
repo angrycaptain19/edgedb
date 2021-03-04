@@ -135,6 +135,4 @@ class AliasGenerator(SimpleCounter):
             hint = hint[:m.start()]
 
         idx = self.nextval(hint)
-        alias = f'{hint}~{idx}'
-
-        return alias
+        return f'{hint}~{idx}'

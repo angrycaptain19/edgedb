@@ -41,8 +41,7 @@ class MatchASTNode:
         object.__setattr__(self, name, value)
 
     def __iter__(self):
-        for field_name, field_value in self.fields.items():
-            yield field_name, field_value
+        yield from self.fields.items()
 
 
 class Object(types.SimpleNamespace):

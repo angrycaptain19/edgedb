@@ -183,8 +183,7 @@ class GraphQLTranslator:
                 break
         if visitor is None:
             raise AssertionError(f"Unexpected node {node.__class__}")
-        result = visitor(node)
-        return result
+        return visitor(node)
 
     def visit(self, node):
         if typeutils.is_container(node):
@@ -254,10 +253,9 @@ class GraphQLTranslator:
         else:
             translated = {}
 
-        if operation_name not in translated:
-            if operation_name:
-                raise errors.QueryError(
-                    f'unknown operation named "{operation_name}"')
+        if operation_name not in translated and operation_name:
+            raise errors.QueryError(
+                f'unknown operation named "{operation_name}"')
 
         operation = translated[operation_name]
         for el in operation.stmt.result.elements:
@@ -279,15 +277,14 @@ class GraphQLTranslator:
 
                 if result.errors:
                     err = result.errors[0]
-                    if isinstance(err, graphql.GraphQLError):
-                        err_loc = (err.locations[0].line,
-                                   err.locations[0].column)
-                        raise g_errors.GraphQLCoreError(
-                            err.message,
-                            loc=err_loc)
-                    else:
+                    if not isinstance(err, graphql.GraphQLError):
                         raise err
 
+                    err_loc = (err.locations[0].line,
+                               err.locations[0].column)
+                    raise g_errors.GraphQLCoreError(
+                        err.message,
+                        loc=err_loc)
                 name = el.expr.steps[0].ptr.name
                 el.compexpr.args[0] = qlast.StringConstant.from_python(
                     json.dumps(result.data[name]))
@@ -316,8 +313,7 @@ class GraphQLTranslator:
         if (node.operation is None or
                 node.operation == graphql.OperationType.QUERY):
             stmt = self._visit_query(node)
-        elif (node.operation is None or
-                node.operation == graphql.OperationType.MUTATION):
+        elif node.operation == graphql.OperationType.MUTATION:
             stmt = self._visit_mutation(node)
         else:
             raise ValueError(f'unsupported operation: {node.operation!r}')
@@ -495,11 +491,7 @@ class GraphQLTranslator:
     def _get_parent_and_current_type(self):
         path = self._context.path[-1]
         cur = path[-1].type
-        if len(path) > 1:
-            par = path[-2].type
-        else:
-            par = self._context.path[-2][-1].type
-
+        par = path[-2].type if len(path) > 1 else self._context.path[-2][-1].type
         return par, cur
 
     def _prepare_field(self, node):
@@ -562,7 +554,7 @@ class GraphQLTranslator:
                 expr=qlast.Path(steps=steps),
             )
 
-        elif not node.selection_set or is_shadowed and node.alias:
+        elif not node.selection_set or is_shadowed:
             # this is either an unshadowed terminal field or an aliased
             # shadowed field
             prefix = qlast.Path(steps=self.get_path_prefix(-1))
@@ -831,10 +823,7 @@ class GraphQLTranslator:
         if before is not None:
             limit = before - (after or 0)
         if first is not None:
-            if limit is None:
-                limit = first
-            else:
-                limit = min(first, limit)
+            limit = first if limit is None else min(first, limit)
         if last is not None:
             if limit is not None:
                 if last < limit:
@@ -893,15 +882,11 @@ class GraphQLTranslator:
 
         if before is not None:
             # limit = before - (after or 0)
-            if after:
-                limit = qlast.BinOp(
+            limit = qlast.BinOp(
                     left=before,
                     op='-',
                     right=offset,
-                )
-            else:
-                limit = before
-
+                ) if after else before
         if first is not None:
             if limit is None:
                 limit = first
@@ -917,41 +902,40 @@ class GraphQLTranslator:
                 )
 
         if last is not None:
-            if limit is not None:
-                if offset:
-                    offset = qlast.BinOp(
-                        left=offset,
-                        op='+',
-                        right=qlast.BinOp(
-                            left=limit,
-                            op='-',
-                            right=last
-                        )
-                    )
-                else:
-                    offset = qlast.BinOp(
-                        left=limit,
-                        op='-',
-                        right=last
-                    )
-
-                limit = qlast.IfElse(
-                    if_expr=last,
-                    condition=qlast.BinOp(
-                        left=last,
-                        op='<',
-                        right=limit
-                    ),
-                    else_expr=limit
-                )
-
-            else:
+            if limit is None:
                 # FIXME: there wasn't any limit, so we can define last
                 # in terms of offset alone without negative OFFSET
                 # implementation
                 raise g_errors.GraphQLTranslationError(
                     f'last translates to a negative OFFSET in '
                     f'EdgeQL which is currently unsupported')
+
+            if offset:
+                offset = qlast.BinOp(
+                    left=offset,
+                    op='+',
+                    right=qlast.BinOp(
+                        left=limit,
+                        op='-',
+                        right=last
+                    )
+                )
+            else:
+                offset = qlast.BinOp(
+                    left=limit,
+                    op='-',
+                    right=last
+                )
+
+            limit = qlast.IfElse(
+                if_expr=last,
+                condition=qlast.BinOp(
+                    left=last,
+                    op='<',
+                    right=limit
+                ),
+                else_expr=limit
+            )
 
         return offset, limit
 
@@ -1002,11 +986,7 @@ class GraphQLTranslator:
                             for fval in input_data
                         ]
 
-                        if len(vals) == 1:
-                            vals = vals[0]
-                        else:
-                            vals = qlast.Set(elements=vals)
-
+                        vals = vals[0] if len(vals) == 1 else qlast.Set(elements=vals)
                         result.append(
                             qlast.ShapeElement(
                                 expr=qlast.Path(
@@ -1315,10 +1295,7 @@ class GraphQLTranslator:
 
     def visit_ObjectValueNode(self, node):
         # this represents some expression to be used in filter
-        result = []
-        for field in node.fields:
-            result.append(self.visit(field))
-
+        result = [self.visit(field) for field in node.fields]
         return self._join_expressions(result)
 
     def visit_ObjectFieldNode(self, node):
@@ -1497,19 +1474,11 @@ class GraphQLTranslator:
         if direction == 'ASC':
             direction = qlast.SortAsc
             # nulls are optional, but are 'SMALLEST' by default
-            if nulls == 'BIGGEST':
-                nulls = qlast.NonesLast
-            else:
-                nulls = qlast.NonesFirst
-
+            nulls = qlast.NonesLast if nulls == 'BIGGEST' else qlast.NonesFirst
         else:  # DESC
             direction = qlast.SortDesc
             # nulls are optional, but are 'SMALLEST' by default
-            if nulls == 'BIGGEST':
-                nulls = qlast.NonesFirst
-            else:
-                nulls = qlast.NonesLast
-
+            nulls = qlast.NonesFirst if nulls == 'BIGGEST' else qlast.NonesLast
         return [Ordering(names=[], direction=direction, nulls=nulls)]
 
     def visit_VariableNode(self, node):
@@ -1594,18 +1563,20 @@ class GraphQLTranslator:
         return result
 
     def combine_field_results(self, results, *, flatten=True):
-        if flatten:
-            flattened = []
-            for res in results:
-                if isinstance(res, Field):
-                    flattened.append(res)
-                elif typeutils.is_container(res):
-                    flattened.extend(res)
-                else:
-                    flattened.append(res)
-            return flattened
-        else:
+        if not flatten:
             return results
+
+        flattened = []
+        for res in results:
+            if (
+                isinstance(res, Field)
+                or not isinstance(res, Field)
+                and not typeutils.is_container(res)
+            ):
+                flattened.append(res)
+            else:
+                flattened.extend(res)
+        return flattened
 
 
 def value_node_from_pyvalue(val: Any):
@@ -1664,15 +1635,15 @@ class TokenLexer(graphql.language.lexer.Lexer):
 
     def lookahead(self) -> gql_lexer.Token:
         token = self.token
-        if token.kind != gql_lexer.TokenKind.EOF:
-            if token.next:
-                return self.token.next
-            kind, start, end, line, col, body = self.__tokens[self.__index + 1]
-            token.next = gql_lexer.Token(
-                kind, start, end, line, col, token, body)
-            return token.next
-        else:
+        if token.kind == gql_lexer.TokenKind.EOF:
             return token
+
+        if token.next:
+            return self.token.next
+        kind, start, end, line, col, body = self.__tokens[self.__index + 1]
+        token.next = gql_lexer.Token(
+            kind, start, end, line, col, token, body)
+        return token.next
 
 
 def parse_tokens(
@@ -1733,17 +1704,15 @@ def translate_ast(
         substitutions=substitutions)
     if validation_errors:
         err = validation_errors[0]
-        if isinstance(err, graphql.GraphQLError):
-
-            # possibly add additional information and/or hints to the
-            # error message
-            msg = augment_error_message(gqlcore, err.message)
-
-            err_loc = (err.locations[0].line, err.locations[0].column)
-            raise g_errors.GraphQLCoreError(msg, loc=err_loc)
-        else:
+        if not isinstance(err, graphql.GraphQLError):
             raise err
 
+        # possibly add additional information and/or hints to the
+        # error message
+        msg = augment_error_message(gqlcore, err.message)
+
+        err_loc = (err.locations[0].line, err.locations[0].column)
+        raise g_errors.GraphQLCoreError(msg, loc=err_loc)
     context = GraphQLTranslatorContext(
         gqlcore=gqlcore, query=None,
         variables=variables, document_ast=document_ast,

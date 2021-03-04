@@ -167,15 +167,15 @@ def _union_cardinality(
     '''Cardinality of UNION of multiple args.'''
 
     card = list(zip(*(_card_to_bounds(a) for a in args)))
-    if card:
-        lower, upper = card
-        return _bounds_to_card(
-            max(lower),
-            CB_MANY if len(upper) > 1 else upper[0],
-        )
-    else:
+    if not card:
         # no args is indicative of a empty set
         return AT_MOST_ONE
+
+    lower, upper = card
+    return _bounds_to_card(
+        max(lower),
+        CB_MANY if len(upper) > 1 else upper[0],
+    )
 
 
 def _coalesce_cardinality(

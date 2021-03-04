@@ -2208,20 +2208,19 @@ class CreateOperatorStmt(Nonterm):
                     'CREATE OPERATOR requires at least one USING clause',
                     context=block.context)
 
-            else:
-                if from_expr and (from_operator or from_function or code):
-                    raise errors.InvalidOperatorDefinitionError(
-                        'USING SQL EXPRESSION is mutually exclusive with '
-                        'other USING variants',
-                        context=block.context)
+            if from_expr and (from_operator or from_function or code):
+                raise errors.InvalidOperatorDefinitionError(
+                    'USING SQL EXPRESSION is mutually exclusive with '
+                    'other USING variants',
+                    context=block.context)
 
-                props['code'] = qlast.OperatorCode(
-                    language=qlast.Language.SQL,
-                    from_function=from_function,
-                    from_operator=from_operator,
-                    from_expr=from_expr,
-                    code=code,
-                )
+            props['code'] = qlast.OperatorCode(
+                language=qlast.Language.SQL,
+                from_function=from_function,
+                from_operator=from_operator,
+                from_expr=from_expr,
+                code=code,
+            )
 
         if commands:
             props['commands'] = commands
@@ -2425,29 +2424,28 @@ class CreateCastStmt(Nonterm):
                 'CREATE CAST requires at least one USING clause',
                 context=block.context)
 
-        else:
-            if from_expr and (from_function or code or from_cast):
-                raise EdgeQLSyntaxError(
-                    'USING SQL EXPRESSION is mutually exclusive with other '
-                    'USING variants',
-                    context=block.context)
+        if from_expr and (from_function or code or from_cast):
+            raise EdgeQLSyntaxError(
+                'USING SQL EXPRESSION is mutually exclusive with other '
+                'USING variants',
+                context=block.context)
 
-            if from_cast and (from_function or code or from_expr):
-                raise EdgeQLSyntaxError(
-                    'USING SQL CAST is mutually exclusive with other '
-                    'USING variants',
-                    context=block.context)
+        if from_cast and (from_function or code or from_expr):
+            raise EdgeQLSyntaxError(
+                'USING SQL CAST is mutually exclusive with other '
+                'USING variants',
+                context=block.context)
 
-            props['code'] = qlast.CastCode(
-                language=qlast.Language.SQL,
-                from_function=from_function,
-                from_expr=from_expr,
-                from_cast=from_cast,
-                code=code,
-            )
+        props['code'] = qlast.CastCode(
+            language=qlast.Language.SQL,
+            from_function=from_function,
+            from_expr=from_expr,
+            from_cast=from_cast,
+            code=code,
+        )
 
-            props['allow_implicit'] = allow_implicit
-            props['allow_assignment'] = allow_assignment
+        props['allow_implicit'] = allow_implicit
+        props['allow_assignment'] = allow_assignment
 
         if commands:
             props['commands'] = commands

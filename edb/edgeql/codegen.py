@@ -74,7 +74,7 @@ def param_to_str(ident: str) -> str:
 
 
 def module_to_str(module: str) -> str:
-    return '.'.join([ident_to_str(part) for part in module.split('.')])
+    return '.'.join(ident_to_str(part) for part in module.split('.'))
 
 
 class EdgeQLSourceGeneratorError(errors.InternalServerError):
@@ -134,12 +134,8 @@ class EdgeQLSourceGenerator(codegen.SourceGenerator):
 
     def generic_visit(self, node: qlast.Base,
                       *args: Any, **kwargs: Any) -> None:
-        if isinstance(node, qlast.SDL):
-            raise EdgeQLSourceGeneratorError(
-                f'No method to generate code for {node.__class__.__name__}')
-        else:
-            raise EdgeQLSourceGeneratorError(
-                f'No method to generate code for {node.__class__.__name__}')
+        raise EdgeQLSourceGeneratorError(
+            f'No method to generate code for {node.__class__.__name__}')
 
     def _block_ws(self, change: int, newlines: bool = True) -> None:
         if newlines:
@@ -469,10 +465,11 @@ class EdgeQLSourceGenerator(codegen.SourceGenerator):
 
     def visit_Path(self, node: qlast.Path) -> None:
         for i, e in enumerate(node.steps):
-            if i > 0 or node.partial:
-                if (getattr(e, 'type', None) != 'property'
-                        and not isinstance(e, qlast.TypeIntersection)):
-                    self.write('.')
+            if (i > 0 or node.partial) and (
+                getattr(e, 'type', None) != 'property'
+                and not isinstance(e, qlast.TypeIntersection)
+            ):
+                self.write('.')
 
             if i == 0:
                 if isinstance(e, qlast.ObjectRef):
@@ -739,10 +736,7 @@ class EdgeQLSourceGenerator(codegen.SourceGenerator):
             self.write('(')
         if node.name is not None:
             self.write(ident_to_str(node.name), ': ')
-        if isinstance(node.maintype, qlast.Path):
-            self.visit(node.maintype)
-        else:
-            self.visit(node.maintype)
+        self.visit(node.maintype)
         if node.subtypes is not None:
             self.write('<')
             self.visit_list(node.subtypes, newlines=False)
@@ -1227,12 +1221,14 @@ class EdgeQLSourceGenerator(codegen.SourceGenerator):
                     node.value, qltypes.SchemaCardinality)
                 keywords.extend(('SET', value.to_edgeql()))
         elif fname == 'owned':
-            if node.value is None:
+            if (
+                node.value is None
+                or node.value is not None
+                and not self._eval_bool_expr(node.value)
+            ):
                 keywords.extend(('DROP', 'OWNED'))
-            elif self._eval_bool_expr(node.value):
-                keywords.extend(('SET', 'OWNED'))
             else:
-                keywords.extend(('DROP', 'OWNED'))
+                keywords.extend(('SET', 'OWNED'))
         else:
             raise EdgeQLSourceGeneratorError(
                 'unknown special field: {!r}'.format(fname))
@@ -1379,9 +1375,7 @@ class EdgeQLSourceGenerator(codegen.SourceGenerator):
         self._visit_DropObject(node, 'SCALAR TYPE')
 
     def visit_CreatePseudoType(self, node: qlast.CreatePseudoType) -> None:
-        keywords = []
-        keywords.append('PSEUDO')
-        keywords.append('TYPE')
+        keywords = ['PSEUDO', 'TYPE']
         self._visit_CreateObject(node, *keywords)
 
     def visit_CreateProperty(self, node: qlast.CreateProperty) -> None:
@@ -1972,10 +1966,10 @@ class EdgeQLSourceGenerator(codegen.SourceGenerator):
             self.write(' ALIAS ')
             self.write(ident_to_str(node.alias))
             self.write(' AS MODULE ')
-            self.write(node.module)
         else:
             self.write(' MODULE ')
-            self.write(node.module)
+
+        self.write(node.module)
 
     def visit_SessionResetAllAliases(
         self,

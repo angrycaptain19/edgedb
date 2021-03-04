@@ -79,12 +79,12 @@ class CoverageConfig(NamedTuple):
     @classmethod
     def start_coverage_if_requested(cls):
         cov_config = cls.from_environ()
-        if cov_config is not None:
-            cov = cov_config.new_coverage_object()
-            cov.start()
-            return cov
-        else:
+        if cov_config is None:
             return None
+
+        cov = cov_config.new_coverage_object()
+        cov.start()
+        return cov
 
     @classmethod
     @contextlib.contextmanager
@@ -112,10 +112,10 @@ def is_in_dev_mode() -> bool:
 
 
 def get_dev_mode_cache_dir() -> os.PathLike:
-    if is_in_dev_mode():
-        root = pathlib.Path(__file__).parent.parent.parent
-        cache_dir = (root / 'build' / 'cache')
-        cache_dir.mkdir(exist_ok=True)
-        return cache_dir
-    else:
+    if not is_in_dev_mode():
         raise RuntimeError('server is not running in dev mode')
+
+    root = pathlib.Path(__file__).parent.parent.parent
+    cache_dir = (root / 'build' / 'cache')
+    cache_dir.mkdir(exist_ok=True)
+    return cache_dir

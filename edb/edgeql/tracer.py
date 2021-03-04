@@ -408,24 +408,21 @@ def trace_Detached(
 @trace.register
 def trace_TypeCast(node: qlast.TypeCast, *, ctx: TracerContext) -> None:
     trace(node.expr, ctx=ctx)
-    if isinstance(node.type, qlast.TypeName):
-        if not node.type.subtypes:
-            ctx.refs.add(ctx.get_ref_name(node.type.maintype))
+    if isinstance(node.type, qlast.TypeName) and not node.type.subtypes:
+        ctx.refs.add(ctx.get_ref_name(node.type.maintype))
 
 
 @trace.register
 def trace_IsOp(node: qlast.IsOp, *, ctx: TracerContext) -> None:
     trace(node.left, ctx=ctx)
-    if isinstance(node.right, qlast.TypeName):
-        if not node.right.subtypes:
-            ctx.refs.add(ctx.get_ref_name(node.right.maintype))
+    if isinstance(node.right, qlast.TypeName) and not node.right.subtypes:
+        ctx.refs.add(ctx.get_ref_name(node.right.maintype))
 
 
 @trace.register
 def trace_Introspect(node: qlast.Introspect, *, ctx: TracerContext) -> None:
-    if isinstance(node.type, qlast.TypeName):
-        if not node.type.subtypes:
-            ctx.refs.add(ctx.get_ref_name(node.type.maintype))
+    if isinstance(node.type, qlast.TypeName) and not node.type.subtypes:
+        ctx.refs.add(ctx.get_ref_name(node.type.maintype))
 
 
 @trace.register
@@ -634,18 +631,17 @@ def _resolve_type_expr(
                     name=texpr.maintype.name,
                 ),
             )
+        refname = ctx.get_ref_name(texpr.maintype)
+        local_obj = ctx.objects.get(refname)
+        obj: TypeLike
+        if local_obj is None:
+            obj = ctx.schema.get(refname, type=s_types.Type)
         else:
-            refname = ctx.get_ref_name(texpr.maintype)
-            local_obj = ctx.objects.get(refname)
-            obj: TypeLike
-            if local_obj is None:
-                obj = ctx.schema.get(refname, type=s_types.Type)
-            else:
-                assert isinstance(local_obj, Type)
-                obj = local_obj
-                ctx.refs.add(refname)
+            assert isinstance(local_obj, Type)
+            obj = local_obj
+            ctx.refs.add(refname)
 
-            return obj
+        return obj
 
     elif isinstance(texpr, qlast.TypeOp):
 
@@ -848,9 +844,7 @@ def trace_For(
         if obj is None:
             obj = SentinelObject
         ctx.objects[sn.QualName('__alias__', node.iterator_alias)] = obj
-        tip = trace(node.result, ctx=ctx)
-
-        return tip
+        return trace(node.result, ctx=ctx)
 
 
 @trace.register

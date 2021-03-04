@@ -66,11 +66,10 @@ def iter_contexts(ex, ctx_class=None):
     contexts = _get_contexts(ex)
     if ctx_class is None:
         return iter(contexts.values())
-    else:
-        assert issubclass(ctx_class, ExceptionContext)
-        return (
-            context for context in contexts.values()
-            if isinstance(context, ctx_class))
+    assert issubclass(ctx_class, ExceptionContext)
+    return (
+        context for context in contexts.values()
+        if isinstance(context, ctx_class))
 
 
 class ExceptionContext:

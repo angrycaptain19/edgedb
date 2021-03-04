@@ -79,10 +79,7 @@ def compile_orderby_clause(
                 sort_type = inference.infer_type(ir_sortexpr, env)
                 # Postgres by default treats ASC as using '<' and DESC
                 # as using '>'. We should do the same.
-                if sortexpr.direction == qlast.SortDesc:
-                    op_name = '>'
-                else:
-                    op_name = '<'
+                op_name = '>' if sortexpr.direction == qlast.SortDesc else '<'
                 opers = env.schema.get_operators(
                     op_name, module_aliases=exprctx.modaliases)
 

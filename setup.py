@@ -188,7 +188,6 @@ def _compile_postgres(build_base, *,
     source_stamp = _get_pg_source_stamp()
 
     postgres_build = (build_base / 'postgres').resolve()
-    postgres_src = ROOT_PATH / 'postgres'
     postgres_build_stamp = postgres_build / 'stamp'
 
     if postgres_build_stamp.exists():
@@ -201,9 +200,7 @@ def _compile_postgres(build_base, *,
 
     if is_outdated or force_build:
         system = platform.system()
-        if system == 'Darwin':
-            uuidlib = 'e2fs'
-        elif system == 'Linux':
+        if system in ['Darwin', 'Linux']:
             uuidlib = 'e2fs'
         else:
             raise NotImplementedError('unsupported system: {}'.format(system))
@@ -215,6 +212,7 @@ def _compile_postgres(build_base, *,
             build_dir.mkdir(parents=True)
 
         if run_configure or fresh_build or is_outdated:
+            postgres_src = ROOT_PATH / 'postgres'
             subprocess.run([
                 str(postgres_src / 'configure'),
                 '--prefix=' + str(postgres_build / 'install'),

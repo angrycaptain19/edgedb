@@ -32,11 +32,7 @@ def append_module_aliases(tree, aliases):
         decl = qlast.ModuleAliasDecl(module=module, alias=alias)
         modaliases.append(decl)
 
-    if not tree.aliases:
-        tree.aliases = modaliases
-    else:
-        tree.aliases = modaliases + tree.aliases
-
+    tree.aliases = modaliases if not tree.aliases else modaliases + tree.aliases
     return tree
 
 

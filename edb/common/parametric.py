@@ -218,10 +218,12 @@ class ParametricType:
         if not isinstance(params, tuple):
             params = (params,)
         all_params = params
-        type_params = []
-        for i, param in enumerate(all_params):
-            if i not in cls._non_type_params:
-                type_params.append(param)
+        type_params = [
+            param
+            for i, param in enumerate(all_params)
+            if i not in cls._non_type_params
+        ]
+
         params_str = ", ".join(_type_repr(a) for a in all_params)
         name = f"{cls.__name__}[{params_str}]"
         bases = (cls,)

@@ -180,13 +180,10 @@ def _get_context(items, *, reverse=False):
     for item in items:
         if isinstance(item, (list, tuple)):
             ctx = _get_context(item, reverse=reverse)
-            if ctx:
-                return ctx
         else:
             ctx = getattr(item, 'context', None)
-            if ctx:
-                return ctx
-
+        if ctx:
+            return ctx
     return None
 
 
@@ -308,11 +305,7 @@ class ContextPropagator(ContextVisitor):
         # now that we have all of the children contexts, let's merge
         # them into one
         #
-        if ctxlist:
-            node.context = merge_context(ctxlist)
-        else:
-            node.context = self._default
-
+        node.context = merge_context(ctxlist) if ctxlist else self._default
         return node.context
 
 

@@ -344,6 +344,5 @@ def rgb_distance(r1, g1, b1, r2, g2, b2):
 
     dHab = _sqrt(max(dEab ** 2 - dL ** 2 - dCab ** 2, 0.0))
 
-    dE = _sqrt((dL ** 2) + ((dCab / (1 + 0.045 * C1)) ** 2) + (
+    return _sqrt((dL ** 2) + ((dCab / (1 + 0.045 * C1)) ** 2) + (
         dHab / (1 + 0.015 * C1)) ** 2)
-    return dE

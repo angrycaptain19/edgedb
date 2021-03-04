@@ -114,10 +114,7 @@ class NodeVisitor:
     skip_hidden = False
 
     def __init__(self, *, context=None, memo=None):
-        if memo is not None:
-            self._memo = memo
-        else:
-            self._memo = {}
+        self._memo = memo if memo is not None else {}
         self._context = context
 
     @property
@@ -221,13 +218,13 @@ def nodes_equal(n1, n2):
                     except IndexError:
                         return False
 
-                    if base.is_ast_node(item1):
-                        if not nodes_equal(item1, item2):
-                            return False
-                    else:
-                        if item1 != item2:
-                            return False
-
+                    if (
+                        base.is_ast_node(item1)
+                        and not nodes_equal(item1, item2)
+                        or not base.is_ast_node(item1)
+                        and item1 != item2
+                    ):
+                        return False
             elif base.is_ast_node(n1v):
                 if not nodes_equal(n1v, n2v):
                     return False

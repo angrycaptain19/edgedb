@@ -276,20 +276,7 @@ def __infer_oper_call(
 
     op_name = str(ir.func_shortname)
 
-    if op_name == 'std::UNION':
-        # UNION will produce multiplicity MANY unless most or all of
-        # the elements multiplicity is ZERO (from an empty set).
-        result = ZERO
-        for m in mult:
-            if m is ONE and result is ZERO:
-                result = m
-            elif m is ONE and result is not ZERO:
-                return MANY
-            elif m is MANY:
-                return MANY
-        return result
-
-    elif op_name == 'std::DISTINCT':
+    if op_name == 'std::DISTINCT':
         if mult[0] is ZERO:
             return ZERO
         else:
@@ -303,6 +290,17 @@ def __infer_oper_call(
             return _max_multiplicity((mult[0], mult[2]))
         else:
             return MANY
+
+    elif op_name == 'std::UNION':
+        # UNION will produce multiplicity MANY unless most or all of
+        # the elements multiplicity is ZERO (from an empty set).
+        result = ZERO
+        for m in mult:
+            if m is ONE and result is ZERO:
+                result = m
+            elif m is ONE or m is MANY:
+                return MANY
+        return result
 
     else:
         # The rest of the operators (other than UNION, DISTINCT, or
@@ -509,14 +507,14 @@ def __infer_select_stmt(
             new_scope = cardinality._get_set_scope(part, scope_tree)
             infer_multiplicity(part, scope_tree=new_scope, ctx=ctx)
 
-    if itmult is not None:
-        if itmult is ONE:
-            return _infer_for_multiplicity(
-                ir, scope_tree=scope_tree, ctx=ctx)
-
-        return MANY
-    else:
+    if itmult is None:
         return result
+
+    if itmult is ONE:
+        return _infer_for_multiplicity(
+            ir, scope_tree=scope_tree, ctx=ctx)
+
+    return MANY
 
 
 @_infer_multiplicity.register

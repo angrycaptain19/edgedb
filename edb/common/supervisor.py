@@ -28,11 +28,7 @@ from . import taskgroup
 class Supervisor:
 
     def __init__(self, *, _name, _loop, _private):
-        if _name is None:
-            self._name = f'sup#{_name_counter()}'
-        else:
-            self._name = str(_name)
-
+        self._name = f'sup#{_name_counter()}' if _name is None else str(_name)
         self._loop = _loop
         self._unfinished_tasks = 0
         self._cancelled = False
@@ -129,9 +125,12 @@ class Supervisor:
 
         assert self._unfinished_tasks >= 0
 
-        if self._on_completed_fut is not None and not self._unfinished_tasks:
-            if not self._on_completed_fut.done():
-                self._on_completed_fut.set_result(True)
+        if (
+            self._on_completed_fut is not None
+            and not self._unfinished_tasks
+            and not self._on_completed_fut.done()
+        ):
+            self._on_completed_fut.set_result(True)
 
         if task.cancelled():
             return

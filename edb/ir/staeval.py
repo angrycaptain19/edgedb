@@ -362,11 +362,7 @@ def object_type_to_python_type(
         fields.append((str_pn, pytype, field))
 
     bases: Tuple[type, ...]
-    if base_class is not None:
-        bases = (base_class,)
-    else:
-        bases = ()
-
+    bases = (base_class, ) if base_class is not None else ()
     ptype_dataclass = dataclasses.make_dataclass(
         objtype.get_name(schema).name,
         fields=fields,

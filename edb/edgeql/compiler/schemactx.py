@@ -185,11 +185,7 @@ def derive_view(
     else:
         exprtype = s_types.ExprType.Select
 
-    if attrs is None:
-        attrs = {}
-    else:
-        attrs = dict(attrs)
-
+    attrs = {} if attrs is None else dict(attrs)
     attrs['expr_type'] = exprtype
 
     derived: s_types.Type
@@ -278,7 +274,7 @@ def derive_ptr(
             derived_name_base=derived_name_base, ctx=ctx)
 
     if ptr.get_name(ctx.env.schema) == derived_name:
-        qualifiers = qualifiers + (ctx.aliases.get('d'),)
+        qualifiers += (ctx.aliases.get('d'),)
 
     ctx.env.schema, derived = ptr.derive_ref(
         ctx.env.schema,
@@ -293,22 +289,23 @@ def derive_ptr(
         preserve_path_id=preserve_path_id,
         attrs=attrs)
 
-    if not ptr.generic(ctx.env.schema):
-        if isinstance(derived, s_sources.Source):
-            ptr = cast(s_links.Link, ptr)
-            scls_pointers = ptr.get_pointers(ctx.env.schema)
-            derived_own_pointers = derived.get_pointers(ctx.env.schema)
+    if not ptr.generic(ctx.env.schema) and isinstance(
+        derived, s_sources.Source
+    ):
+        ptr = cast(s_links.Link, ptr)
+        scls_pointers = ptr.get_pointers(ctx.env.schema)
+        derived_own_pointers = derived.get_pointers(ctx.env.schema)
 
-            for pn, ptr in derived_own_pointers.items(ctx.env.schema):
-                # This is a view of a view.  Make sure query-level
-                # computable expressions for pointers are carried over.
-                src_ptr = scls_pointers.get(ctx.env.schema, pn)
-                # mypy somehow loses the type argument in the
-                # "pointers" ObjectIndex.
-                assert isinstance(src_ptr, s_pointers.Pointer)
-                computable_data = ctx.source_map.get(src_ptr)
-                if computable_data is not None:
-                    ctx.source_map[ptr] = computable_data
+        for pn, ptr in derived_own_pointers.items(ctx.env.schema):
+            # This is a view of a view.  Make sure query-level
+            # computable expressions for pointers are carried over.
+            src_ptr = scls_pointers.get(ctx.env.schema, pn)
+            # mypy somehow loses the type argument in the
+            # "pointers" ObjectIndex.
+            assert isinstance(src_ptr, s_pointers.Pointer)
+            computable_data = ctx.source_map.get(src_ptr)
+            if computable_data is not None:
+                ctx.source_map[ptr] = computable_data
 
     if preserve_shape and ptr in ctx.env.view_shapes:
         ctx.env.view_shapes[derived] = ctx.env.view_shapes[ptr]
@@ -443,7 +440,7 @@ def apply_intersection(
             elif right.issubclass(ctx.env.schema, component_type):
                 narrowed_union.append(right)
 
-        if len(narrowed_union) == 0:
+        if not narrowed_union:
             int_type = get_intersection_type((left, right), ctx=ctx)
             is_subtype = int_type.issubclass(ctx.env.schema, left)
             assert isinstance(right, s_obj.InheritingObject)

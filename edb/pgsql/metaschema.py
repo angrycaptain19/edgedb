@@ -3727,7 +3727,7 @@ def _describe_config(
         "<bool>json_get(cfg::get_config_json(),'__internal_testmode','value')"
         " ?? false"
     )
-    query = (
+    return (
         f"FOR conf IN {{cfg::get_config_json(sources := [{ql(source)}])}} "
         + "UNION (\n"
         + (f"FOR testmode IN {{{testmode_check}}} UNION (\n"
@@ -3736,7 +3736,6 @@ def _describe_config(
         + (")" if testmode else "")
         + ")"
     )
-    return query
 
 
 def _render_config_value(
@@ -3787,12 +3786,11 @@ def _render_config_set(
             f"SET { qlquote.quote_ident(name) } := {{' ++ "
             f"array_join(array_agg({v}), ', ') ++ '}};'"
         )
-    else:
-        indent = ' ' * (4 * (level - 1))
-        return (
-            f"'{indent}{ qlquote.quote_ident(name) } := {{' ++ "
-            f"array_join(array_agg({v}), ', ') ++ '}},'"
-        )
+    indent = ' ' * (4 * (level - 1))
+    return (
+        f"'{indent}{ qlquote.quote_ident(name) } := {{' ++ "
+        f"array_join(array_agg({v}), ', ') ++ '}},'"
+    )
 
 
 def _render_config_scalar(
@@ -3812,9 +3810,8 @@ def _render_config_scalar(
             f"'CONFIGURE {scope.to_edgeql()} "
             f"SET { qlquote.quote_ident(name) } := ' ++ {v} ++ ';'"
         )
-    else:
-        indent = ' ' * (4 * (level - 1))
-        return f"'{indent}{ qlquote.quote_ident(name) } := ' ++ {v} ++ ','"
+    indent = ' ' * (4 * (level - 1))
+    return f"'{indent}{ qlquote.quote_ident(name) } := ' ++ {v} ++ ','"
 
 
 def _render_config_object(
@@ -3965,14 +3962,18 @@ def _build_key_source(
 
         targetlist = ','.join(restargets)
 
-        keysource = textwrap.dedent(f'''\
+        return textwrap.dedent(
+            f'''\
             (SELECT
                 ARRAY[{targetlist}] AS key
-            ) AS k{source_idx}''')
+            ) AS k{source_idx}'''
+        )
+
     else:
         assert rptr is not None
         rptr_name = rptr.get_shortname(schema).name
-        keysource = textwrap.dedent(f'''\
+        return textwrap.dedent(
+            f'''\
             (SELECT
                 ARRAY[
                     (CASE WHEN q{source_idx}.val = 'null'::jsonb
@@ -3980,14 +3981,14 @@ def _build_key_source(
                      ELSE {ql(rptr_name)}
                      END)
                 ] AS key
-            ) AS k{source_idx}''')
-
-    return keysource
+            ) AS k{source_idx}'''
+        )
 
 
 def _build_key_expr(key_components: List[str]) -> str:
     key_expr = ' || '.join(key_components)
-    final_keysource = textwrap.dedent(f'''\
+    return textwrap.dedent(
+        f'''\
         (SELECT
             (CASE WHEN array_position(q.v, NULL) IS NULL
              THEN
@@ -3999,9 +4000,8 @@ def _build_key_expr(key_components: List[str]) -> str:
              END) AS key
          FROM
             (SELECT {key_expr} AS v) AS q
-        )''')
-
-    return final_keysource
+        )'''
+    )
 
 
 def _build_data_source(
@@ -4016,25 +4016,24 @@ def _build_data_source(
     rptr_card = rptr.get_cardinality(schema)
     rptr_multi = rptr_card.is_multi()
 
-    if alias is None:
-        alias = f'q{source_idx + 1}'
-    else:
-        alias = f'q{alias}'
-
+    alias = f'q{source_idx + 1}' if alias is None else f'q{alias}'
     if rptr_multi:
-        sourceN = textwrap.dedent(f'''\
+        return textwrap.dedent(
+            f'''\
             (SELECT jel.val
                 FROM
                 jsonb_array_elements(
                     (q{source_idx}.val)->{ql(rptr_name)}) AS jel(val)
-            ) AS {alias}''')
+            ) AS {alias}'''
+        )
+
     else:
-        sourceN = textwrap.dedent(f'''\
+        return textwrap.dedent(
+            f'''\
             (SELECT
                 (q{source_idx}.val)->{ql(rptr_name)} AS val
-            ) AS {alias}''')
-
-    return sourceN
+            ) AS {alias}'''
+        )
 
 
 def _generate_config_type_view(
@@ -4075,6 +4074,7 @@ def _generate_config_type_view(
 
     sources = []
 
+    key_start = 0
     if not path:
         # This is the root config object.
         if rptr is None:
@@ -4102,10 +4102,7 @@ def _generate_config_type_view(
                     WHERE name = {ql(rptr_name)}) AS q0''')
 
         sources.append(source0)
-        key_start = 0
     else:
-        key_start = 0
-
         for i, (l, exc_props) in enumerate(path):
             l_card = l.get_cardinality(schema)
             l_multi = l_card.is_multi()
@@ -4231,11 +4228,7 @@ def _generate_config_type_view(
         link_psi = types.get_pointer_storage_info(link, schema=schema)
         link_col = link_psi.column_name
 
-        if rptr is not None:
-            target_path = path + [(rptr, exclusive_props)]
-        else:
-            target_path = path
-
+        target_path = path + [(rptr, exclusive_props)] if rptr is not None else path
         target_views, target_exc_props = _generate_config_type_view(
             schema,
             link_type,
@@ -4298,11 +4291,7 @@ def _generate_config_type_view(
         link_name = link.get_shortname(schema).name
         link_type = link.get_target(schema)
 
-        if rptr is not None:
-            target_path = path + [(rptr, exclusive_props)]
-        else:
-            target_path = path
-
+        target_path = path + [(rptr, exclusive_props)] if rptr is not None else path
         target_views, target_exc_props = _generate_config_type_view(
             schema,
             link_type,

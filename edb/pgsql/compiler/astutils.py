@@ -84,7 +84,7 @@ def tuple_getattr(
     set_expr: pgast.BaseExpr
 
     if irtyputils.is_persistent_tuple(tuple_typeref):
-        set_expr = pgast.Indirection(
+        return pgast.Indirection(
             arg=tuple_val,
             indirection=[
                 pgast.ColumnRef(
@@ -93,7 +93,7 @@ def tuple_getattr(
             ],
         )
     else:
-        set_expr = pgast.SelectStmt(
+        return pgast.SelectStmt(
             target_list=[
                 pgast.ResTarget(
                     val=pgast.ColumnRef(
@@ -125,8 +125,6 @@ def tuple_getattr(
                 )
             ]
         )
-
-    return set_expr
 
 
 def is_null_const(expr: pgast.BaseExpr) -> bool:
@@ -185,11 +183,7 @@ def extend_binop(
     exprlist = list(exprs)
     result: pgast.BaseExpr
 
-    if binop is None:
-        result = exprlist.pop(0)
-    else:
-        result = binop
-
+    result = exprlist.pop(0) if binop is None else binop
     for expr in exprlist:
         if expr is not None and expr is not result:
             result = new_binop(lexpr=result, op=op, rexpr=expr)

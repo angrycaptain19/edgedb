@@ -437,17 +437,19 @@ def compile_TypeCast(
             )
 
         param_name = expr.expr.name
-        if expr.cardinality_mod:
-            if expr.cardinality_mod == qlast.CardinalityModifier.Optional:
-                required = False
-            elif expr.cardinality_mod == qlast.CardinalityModifier.Required:
-                required = True
-            else:
-                raise NotImplementedError(
-                    f"cardinality modifier {expr.cardinality_mod}")
-        else:
+        if (
+            expr.cardinality_mod
+            and expr.cardinality_mod == qlast.CardinalityModifier.Optional
+        ):
+            required = False
+        elif (
+            expr.cardinality_mod == qlast.CardinalityModifier.Required
+            or not expr.cardinality_mod
+        ):
             required = True
-
+        else:
+            raise NotImplementedError(
+                f"cardinality modifier {expr.cardinality_mod}")
         if ctx.env.options.json_parameters:
             if param_name.isdecimal():
                 raise errors.QueryError(

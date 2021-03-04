@@ -399,21 +399,20 @@ class ProcessFunctionBlockMixin:
                 'missing a USING clause',
                 context=block.context)
 
-        else:
-            if from_expr and (from_function or code):
-                raise EdgeQLSyntaxError(
-                    'USING SQL EXPRESSION is mutually exclusive with other '
-                    'USING variants',
-                    context=block.context)
+        if from_expr and (from_function or code):
+            raise EdgeQLSyntaxError(
+                'USING SQL EXPRESSION is mutually exclusive with other '
+                'USING variants',
+                context=block.context)
 
-            props['code'] = qlast.FunctionCode(
-                language=language,
-                from_function=from_function,
-                from_expr=from_expr,
-                code=code,
-            )
+        props['code'] = qlast.FunctionCode(
+            language=language,
+            from_function=from_function,
+            from_expr=from_expr,
+            code=code,
+        )
 
-            props['nativecode'] = nativecode
+        props['nativecode'] = nativecode
 
         if commands:
             props['commands'] = commands

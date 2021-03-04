@@ -790,44 +790,41 @@ def compile_DescribeStmt(
             )
 
         elif ql.object is qlast.DescribeGlobal.DatabaseConfig:
-            if ql.language is qltypes.DescribeLanguage.DDL:
-                function_call = dispatch.compile(
-                    qlast.FunctionCall(
-                        func=('cfg', '_describe_database_config_as_ddl'),
-                    ),
-                    ctx=ictx)
-                assert isinstance(function_call, irast.Set), function_call
-                stmt.result = function_call
-            else:
+            if ql.language is not qltypes.DescribeLanguage.DDL:
                 raise errors.QueryError(
                     f'cannot describe config as {ql.language}')
 
+            function_call = dispatch.compile(
+                qlast.FunctionCall(
+                    func=('cfg', '_describe_database_config_as_ddl'),
+                ),
+                ctx=ictx)
+            assert isinstance(function_call, irast.Set), function_call
+            stmt.result = function_call
         elif ql.object is qlast.DescribeGlobal.SystemConfig:
-            if ql.language is qltypes.DescribeLanguage.DDL:
-                function_call = dispatch.compile(
-                    qlast.FunctionCall(
-                        func=('cfg', '_describe_system_config_as_ddl'),
-                    ),
-                    ctx=ictx)
-                assert isinstance(function_call, irast.Set), function_call
-                stmt.result = function_call
-            else:
+            if ql.language is not qltypes.DescribeLanguage.DDL:
                 raise errors.QueryError(
                     f'cannot describe config as {ql.language}')
 
+            function_call = dispatch.compile(
+                qlast.FunctionCall(
+                    func=('cfg', '_describe_system_config_as_ddl'),
+                ),
+                ctx=ictx)
+            assert isinstance(function_call, irast.Set), function_call
+            stmt.result = function_call
         elif ql.object is qlast.DescribeGlobal.Roles:
-            if ql.language is qltypes.DescribeLanguage.DDL:
-                function_call = dispatch.compile(
-                    qlast.FunctionCall(
-                        func=('sys', '_describe_roles_as_ddl'),
-                    ),
-                    ctx=ictx)
-                assert isinstance(function_call, irast.Set), function_call
-                stmt.result = function_call
-            else:
+            if ql.language is not qltypes.DescribeLanguage.DDL:
                 raise errors.QueryError(
                     f'cannot describe roles as {ql.language}')
 
+            function_call = dispatch.compile(
+                qlast.FunctionCall(
+                    func=('sys', '_describe_roles_as_ddl'),
+                ),
+                ctx=ictx)
+            assert isinstance(function_call, irast.Set), function_call
+            stmt.result = function_call
         else:
             assert isinstance(ql.object, qlast.ObjectRef), ql.object
             modules = []
@@ -897,11 +894,10 @@ def compile_DescribeStmt(
                         # it's not a function we're looking for specifically.
                         if not is_function:
                             try:
-                                if itemclass is not \
-                                        qltypes.SchemaObjectClass.ALIAS:
-                                    condition = None
-                                    label = None
-                                else:
+                                if (
+                                    itemclass
+                                    is qltypes.SchemaObjectClass.ALIAS
+                                ):
                                     condition = (
                                         lambda obj:
                                         obj.get_alias_is_persistent(
@@ -909,6 +905,9 @@ def compile_DescribeStmt(
                                         )
                                     )
                                     label = 'alias'
+                                else:
+                                    condition = None
+                                    label = None
                                 obj = schemactx.get_schema_object(
                                     objref,
                                     item_type=itemtype,

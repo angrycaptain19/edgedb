@@ -115,7 +115,7 @@ class NontermMeta(type):
     def __new__(mcls, name, bases, dct):
         result = super().__new__(mcls, name, bases, dct)
 
-        if name == 'Nonterm' or name == 'ListNonterm':
+        if name in ['Nonterm', 'ListNonterm']:
             return result
 
         if not result.__doc__:
@@ -175,8 +175,7 @@ class ListNontermMeta(NontermMeta):
             dct['reduce_' + '_'.join(tokens)] = prod
             dct['reduce_' + element] = lambda self, el: self._reduce_el(el)
 
-        cls = super().__new__(mcls, name, bases, dct)
-        return cls
+        return super().__new__(mcls, name, bases, dct)
 
     def __init__(cls, name, bases, dct, *, element, separator=None):
         super().__init__(name, bases, dct)
@@ -185,19 +184,11 @@ class ListNontermMeta(NontermMeta):
 class ListNonterm(Nonterm, metaclass=ListNontermMeta, element=None):
 
     def _reduce_list(self, lst, el):
-        if el.val is None:
-            tail = []
-        else:
-            tail = [el.val]
-
+        tail = [] if el.val is None else [el.val]
         self.val = lst.val + tail
 
     def _reduce_el(self, el):
-        if el.val is None:
-            tail = []
-        else:
-            tail = [el.val]
-
+        tail = [] if el.val is None else [el.val]
         self.val = tail
 
     def __iter__(self):
@@ -314,9 +305,11 @@ def _derive_hint(
     position: Tuple[int, int, int],
 ) -> Optional[str]:
     _, _, off = position
-    if message == r"invalid string literal: invalid escape sequence '\ '":
-        if TRAILING_WS_IN_CONTINUATION.search(input[off:]):
-            return "consider removing trailing whitespace"
+    if (
+        message == r"invalid string literal: invalid escape sequence '\ '"
+        and TRAILING_WS_IN_CONTINUATION.search(input[off:])
+    ):
+        return "consider removing trailing whitespace"
     return None
 
 
@@ -426,21 +419,19 @@ class Parser:
 
     def context(self, tok=None, pos: Tuple[int, int, int] = None):
         lex = self.lexer
-        name = lex.filename if lex.filename else '<string>'
+        name = lex.filename or '<string>'
 
-        if tok is None:
-            if pos is None:
-                pos = lex.end_of_input
-            context = pctx.ParserContext(
-                name=name, buffer=lex.inputstr,
-                start=pos[2], end=pos[2])
-        else:
-            context = pctx.ParserContext(
+        if tok is not None:
+            return pctx.ParserContext(
                 name=name, buffer=lex.inputstr,
                 start=tok.start()[2],
                 end=tok.end()[2])
 
-        return context
+        if pos is None:
+            pos = lex.end_of_input
+        return pctx.ParserContext(
+                name=name, buffer=lex.inputstr,
+                start=pos[2], end=pos[2])
 
 
 def line_col_from_char_offset(source, position):

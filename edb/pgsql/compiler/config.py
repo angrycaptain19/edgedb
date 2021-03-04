@@ -458,55 +458,55 @@ def top_output_as_config_op(
 
     assert isinstance(ir_set.expr, irast.ConfigCommand)
 
-    if ir_set.expr.scope is qltypes.ConfigScope.SYSTEM:
-        alias = env.aliases.get('cfg')
-        subrvar = pgast.RangeSubselect(
-            subquery=stmt,
-            alias=pgast.Alias(
-                aliasname=alias,
-            )
-        )
-
-        stmt_res = stmt.target_list[0]
-
-        if stmt_res.name is None:
-            stmt_res = stmt.target_list[0] = pgast.ResTarget(
-                name=env.aliases.get('v'),
-                val=stmt_res.val,
-            )
-
-        result_row = pgast.RowExpr(
-            args=[
-                pgast.StringConstant(val='ADD'),
-                pgast.StringConstant(val=str(ir_set.expr.scope)),
-                pgast.StringConstant(val=ir_set.expr.name),
-                pgast.ColumnRef(name=[stmt_res.name]),
-            ]
-        )
-
-        array = pgast.FuncCall(
-            name=('jsonb_build_array',),
-            args=result_row.args,
-            null_safe=True,
-            ser_safe=True,
-        )
-
-        result = pgast.SelectStmt(
-            target_list=[
-                pgast.ResTarget(
-                    val=array,
-                ),
-            ],
-            from_clause=[
-                subrvar,
-            ],
-        )
-
-        result.ctes = stmt.ctes
-        result.argnames = stmt.argnames
-        stmt.ctes = []
-
-        return result
-    else:
+    if ir_set.expr.scope is not qltypes.ConfigScope.SYSTEM:
         raise errors.InternalServerError(
             f'CONFIGURE {ir_set.expr.scope} INSERT is not supported')
+
+    alias = env.aliases.get('cfg')
+    subrvar = pgast.RangeSubselect(
+        subquery=stmt,
+        alias=pgast.Alias(
+            aliasname=alias,
+        )
+    )
+
+    stmt_res = stmt.target_list[0]
+
+    if stmt_res.name is None:
+        stmt_res = stmt.target_list[0] = pgast.ResTarget(
+            name=env.aliases.get('v'),
+            val=stmt_res.val,
+        )
+
+    result_row = pgast.RowExpr(
+        args=[
+            pgast.StringConstant(val='ADD'),
+            pgast.StringConstant(val=str(ir_set.expr.scope)),
+            pgast.StringConstant(val=ir_set.expr.name),
+            pgast.ColumnRef(name=[stmt_res.name]),
+        ]
+    )
+
+    array = pgast.FuncCall(
+        name=('jsonb_build_array',),
+        args=result_row.args,
+        null_safe=True,
+        ser_safe=True,
+    )
+
+    result = pgast.SelectStmt(
+        target_list=[
+            pgast.ResTarget(
+                val=array,
+            ),
+        ],
+        from_clause=[
+            subrvar,
+        ],
+    )
+
+    result.ctes = stmt.ctes
+    result.argnames = stmt.argnames
+    stmt.ctes = []
+
+    return result

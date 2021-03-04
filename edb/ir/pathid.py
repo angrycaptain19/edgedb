@@ -109,10 +109,7 @@ class PathId:
         if isinstance(initializer, PathId):
             self._path = initializer._path
             self._norm_path = initializer._norm_path
-            if namespace:
-                self._namespace = frozenset(namespace)
-            else:
-                self._namespace = initializer._namespace
+            self._namespace = frozenset(namespace) if namespace else initializer._namespace
             self._is_ptr = initializer._is_ptr
             self._is_linkprop = initializer._is_linkprop
             self._prefix = initializer._prefix
@@ -349,11 +346,7 @@ class PathId:
         else:
             result._namespace = self._namespace
 
-        if self._namespace != result._namespace:
-            result._prefix = self
-        else:
-            result._prefix = self._prefix
-
+        result._prefix = self if self._namespace != result._namespace else self._prefix
         return result
 
     def replace_namespace(
@@ -386,17 +379,17 @@ class PathId:
     def strip_namespace(self, namespace: AbstractSet[AnyNamespace]) -> PathId:
         """Return a copy of this ``PathId`` with a given portion of the
            namespace id removed."""
-        if self._namespace and namespace:
-            stripped_ns = self._namespace - set(namespace)
-            result = self.replace_namespace(stripped_ns)
-
-            if result._prefix is not None:
-                result._prefix = result._get_minimal_prefix(
-                    result._prefix.strip_namespace(namespace))
-
-            return result
-        else:
+        if not self._namespace or not namespace:
             return self
+
+        stripped_ns = self._namespace - set(namespace)
+        result = self.replace_namespace(stripped_ns)
+
+        if result._prefix is not None:
+            result._prefix = result._get_minimal_prefix(
+                result._prefix.strip_namespace(namespace))
+
+        return result
 
     def iter_weak_namespace_prefixes(self) -> Iterator[PathId]:
         yield self
@@ -442,29 +435,15 @@ class PathId:
                 path[i + 1],
             )
 
-            if debug:
-                ptr = f'({ptrspec[0].name})'
-            else:
-                ptr = ptrspec[0].shortname.name
+            ptr = f'({ptrspec[0].name})' if debug else ptrspec[0].shortname.name
             ptrdir = ptrspec[1]
             is_lprop = ptrspec[0].source_ptr is not None
 
-            if tgtspec.material_type is not None:
-                mat_tgt = tgtspec.material_type
-            else:
-                mat_tgt = tgtspec
+            mat_tgt = tgtspec if tgtspec.material_type is None else tgtspec.material_type
             tgt = mat_tgt.name_hint
 
-            if tgt:
-                lexpr = f'{ptr}[IS {tgt}]'
-            else:
-                lexpr = f'{ptr}'
-
-            if is_lprop:
-                step = '@'
-            else:
-                step = f'.{ptrdir}'
-
+            lexpr = f'{ptr}[IS {tgt}]' if tgt else f'{ptr}'
+            step = '@' if is_lprop else f'.{ptrdir}'
             result += f'{step}{lexpr}'
 
         if self._is_ptr:
@@ -568,10 +547,9 @@ class PathId:
         """
         if self._is_ptr:
             return self
-        else:
-            result = self.__class__(self)
-            result._is_ptr = True
-            return result
+        result = self.__class__(self)
+        result._is_ptr = True
+        return result
 
     def tgt_path(self) -> PathId:
         """If this is a pointer prefix, return the ``PathId`` representing
@@ -581,10 +559,9 @@ class PathId:
         """
         if not self._is_ptr:
             return self
-        else:
-            result = self.__class__(self)
-            result._is_ptr = False
-            return result
+        result = self.__class__(self)
+        result._is_ptr = False
+        return result
 
     def iter_prefixes(self, include_ptr: bool = False) -> Iterator[PathId]:
         """Return an iterator over all prefixes of this ``PathId``.
@@ -624,26 +601,24 @@ class PathId:
 
                PathId(A.b.c).replace_prefix(A.b, X.y) == PathId(X.y.c)
         """
-        if self.startswith(prefix):
-            prefix_len = len(prefix)
-            if prefix_len < len(self):
-                result = self.__class__(self)
-                result._path = replacement._path + self._path[prefix_len:]
-                result._norm_path = \
-                    replacement._norm_path + self._norm_path[prefix_len:]
-                result._namespace = replacement._namespace
-
-                if self._prefix is not None and len(self._prefix) > prefix_len:
-                    result._prefix = self._prefix.replace_prefix(
-                        prefix, replacement)
-                else:
-                    result._prefix = replacement._prefix
-
-                return result
-            else:
-                return replacement
-        else:
+        if not self.startswith(prefix):
             return self
+        prefix_len = len(prefix)
+        if prefix_len >= len(self):
+            return replacement
+        result = self.__class__(self)
+        result._path = replacement._path + self._path[prefix_len:]
+        result._norm_path = \
+            replacement._norm_path + self._norm_path[prefix_len:]
+        result._namespace = replacement._namespace
+
+        if self._prefix is not None and len(self._prefix) > prefix_len:
+            result._prefix = self._prefix.replace_prefix(
+                prefix, replacement)
+        else:
+            result._prefix = replacement._prefix
+
+        return result
 
     @property
     def target(self) -> irast.TypeRef:

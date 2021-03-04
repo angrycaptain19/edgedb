@@ -139,7 +139,7 @@ class StructMeta(type):
 
             if use_slots:
                 clsdict['__slots__'] = tuple(myfields.keys())
-                for key in myfields.keys():
+                for key in myfields:
                     del clsdict[key]
 
         cls = cast(
@@ -310,9 +310,7 @@ class Struct(metaclass=StructMeta):
             yield field, getattr(self, field, None)
 
     def as_tuple(self) -> Tuple[Any, ...]:
-        result = []
-        for field in self.__class__._fields:
-            result.append(getattr(self, field, None))
+        result = [getattr(self, field, None) for field in self.__class__._fields]
         return tuple(result)
 
     __copy__ = copy

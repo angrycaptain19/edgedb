@@ -93,18 +93,18 @@ class TextSearchExpr:
 
     def match(self, tree):
         m = astmatch.match(self.get_pattern(), tree)
-        if m:
-            result = {}
-            for col in m.column:
-                field_name = col.column_name[0].node.field
-                language = col.language[0].node.value
-                weight = col.weight[0].node.value
-
-                result[field_name] = (language, weight)
-
-            return result
-        else:
+        if not m:
             return None
+
+        result = {}
+        for col in m.column:
+            field_name = col.column_name[0].node.field
+            language = col.language[0].node.value
+            weight = col.weight[0].node.value
+
+            result[field_name] = (language, weight)
+
+        return result
 
 
 class TypeExpr:
@@ -119,15 +119,13 @@ class TypeExpr:
 
     def match(self, tree):
         m = astmatch.match(self.get_pattern(), tree)
-        if m:
-            if m.value[0].node.typmods:
-                typmods = []
-
-                for tm in m.value[0].node.typmods:
-                    typmods.append(tm.value)
-            else:
-                typmods = None
-            typname = m.value[0].node.name
-            return (typname, typmods)
-        else:
+        if not m:
             return None
+
+        if m.value[0].node.typmods:
+            typmods = [tm.value for tm in m.value[0].node.typmods]
+
+        else:
+            typmods = None
+        typname = m.value[0].node.name
+        return (typname, typmods)

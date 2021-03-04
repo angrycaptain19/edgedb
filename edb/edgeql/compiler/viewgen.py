@@ -203,28 +203,26 @@ def _process_view(
 
             default_expr = ptrcls.get_default(ctx.env.schema)
             if not default_expr:
-                if (
-                    ptrcls.get_required(ctx.env.schema)
-                    and pn != sn.UnqualName('__type__')
-                ):
-                    if ptrcls.is_property(ctx.env.schema):
-                        # If the target is a sequence, there's no need
-                        # for an explicit value.
-                        ptrcls_target = ptrcls.get_target(ctx.env.schema)
-                        assert ptrcls_target is not None
-                        if ptrcls_target.issubclass(
-                                ctx.env.schema,
-                                ctx.env.schema.get(
-                                    'std::sequence',
-                                    type=s_objects.SubclassableObject)):
-                            continue
-                    vn = ptrcls.get_verbosename(
-                        ctx.env.schema, with_parent=True)
-                    raise errors.MissingRequiredError(
-                        f'missing value for required {vn}')
-                else:
+                if not ptrcls.get_required(
+                    ctx.env.schema
+                ) or pn == sn.UnqualName('__type__'):
                     continue
 
+                if ptrcls.is_property(ctx.env.schema):
+                    # If the target is a sequence, there's no need
+                    # for an explicit value.
+                    ptrcls_target = ptrcls.get_target(ctx.env.schema)
+                    assert ptrcls_target is not None
+                    if ptrcls_target.issubclass(
+                            ctx.env.schema,
+                            ctx.env.schema.get(
+                                'std::sequence',
+                                type=s_objects.SubclassableObject)):
+                        continue
+                vn = ptrcls.get_verbosename(
+                    ctx.env.schema, with_parent=True)
+                raise errors.MissingRequiredError(
+                    f'missing value for required {vn}')
             ptrcls_sn = ptrcls.get_shortname(ctx.env.schema)
             default_ql = qlast.ShapeElement(
                 expr=qlast.Path(
@@ -323,11 +321,7 @@ def _process_view(
 
         if is_defining_shape:
             cinfo = ctx.source_map.get(ptrcls)
-            if cinfo is not None:
-                shape_op = cinfo.shape_op
-            else:
-                shape_op = qlast.ShapeOp.ASSIGN
-
+            shape_op = cinfo.shape_op if cinfo is not None else qlast.ShapeOp.ASSIGN
             ctx.env.view_shapes[source].append((ptrcls, shape_op))
 
     if (view_rptr is not None and view_rptr.ptrcls is not None and

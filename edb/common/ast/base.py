@@ -153,11 +153,7 @@ class MetaAST(type):
 
                     if len(field) > 1:
                         field_type = field[1]
-                    if len(field) > 2:
-                        field_default = field[2]
-                    else:
-                        field_default = field_type
-
+                    field_default = field[2] if len(field) > 2 else field_type
                     if len(field) > 3:
                         field_traverse = field[3]
 
@@ -248,10 +244,7 @@ class AST(object, metaclass=MetaAST):
             if field_name in kwargs:
                 value = kwargs[field_name]
             elif field.default is not None:
-                if callable(field.default):
-                    value = field.default()
-                else:
-                    value = field.default
+                value = field.default() if callable(field.default) else field.default
             else:
                 value = None
 
@@ -332,9 +325,8 @@ def _serialize_to_markup(ast, *, ctx):
     for fieldname, field in fields:
         if ast._fields[fieldname].hidden:
             continue
-        if field is None:
-            if ast._fields[fieldname].meta:
-                continue
+        if field is None and ast._fields[fieldname].meta:
+            continue
         node.add_child(label=fieldname, node=markup.serialize(field, ctx=ctx))
 
     return node
@@ -361,10 +353,7 @@ def iter_fields(node, *, include_meta=True, exclude_unset=False):
         if field_val is _marker:
             continue
         if exclude_unset:
-            if callable(field.default):
-                default = field.default()
-            else:
-                default = field.default
+            default = field.default() if callable(field.default) else field.default
             if field_val == default:
                 continue
         yield field_name, field_val

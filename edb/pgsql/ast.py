@@ -81,10 +81,7 @@ class BaseExpr(Base):
                      nullable: typing.Optional[bool]) -> bool:
         if nullable is None:
             default = type(self).get_field('nullable').default
-            if default is not None:
-                nullable = default
-            else:
-                nullable = self._infer_nullability(kwargs)
+            nullable = default if default is not None else self._infer_nullability(kwargs)
         return nullable
 
     def _infer_nullability(self, kwargs: typing.Dict[str, object]) -> bool:

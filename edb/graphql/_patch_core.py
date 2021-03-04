@@ -28,9 +28,11 @@ def patch_graphql_core():
 
     def is_type_sub_type_of(schema, maybe_subtype, super_type):
         # allow coercing ints to floats
-        if super_type is graphql.GraphQLFloat:
-            if maybe_subtype is graphql.GraphQLInt:
-                return True
+        if (
+            super_type is graphql.GraphQLFloat
+            and maybe_subtype is graphql.GraphQLInt
+        ):
+            return True
         return old_is_type_sub_type_of(schema, maybe_subtype, super_type)
 
     type_comparators.is_type_sub_type_of = is_type_sub_type_of

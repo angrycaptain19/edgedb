@@ -160,11 +160,7 @@ def reset(ctx, parameter: str, values):
 
             attrs.append(pval)
 
-        if attrs:
-            flt = f"FILTER {' AND '.join(attrs)}"
-        else:
-            flt = ''
-
+        flt = f"FILTER {' AND '.join(attrs)}" if attrs else ''
         qry = textwrap.dedent(f'''
             CONFIGURE SYSTEM RESET {cfg_obj_name} {flt}
         ''')

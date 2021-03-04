@@ -154,10 +154,7 @@ these ways. Unlike in EdgeQL.
 
 
 def coerce_int64(value: Any) -> int:
-    if isinstance(value, int):
-        num = value
-    else:
-        num = int(value)
+    num = value if isinstance(value, int) else int(value)
     if s_utils.MIN_INT64 <= num <= s_utils.MAX_INT64:
         return num
 
@@ -166,11 +163,7 @@ def coerce_int64(value: Any) -> int:
 
 
 def coerce_bigint(value: Any) -> int:
-    if isinstance(value, int):
-        num = value
-    else:
-        num = int(value)
-    return num
+    return value if isinstance(value, int) else int(value)
 
 
 def parse_int_literal(
@@ -528,12 +521,11 @@ class GQLCoreSchema:
         if not ptr.singular(self.edb_schema):
             target = GraphQLList(GraphQLNonNull(target))
 
-        if not ignore_required:
-            if (
-                ptr.get_required(self.edb_schema)
-                and ptr.get_default(self.edb_schema) is None
-            ):
-                target = GraphQLNonNull(target)
+        if not ignore_required and (
+            ptr.get_required(self.edb_schema)
+            and ptr.get_default(self.edb_schema) is None
+        ):
+            target = GraphQLNonNull(target)
 
         return target
 
@@ -788,10 +780,7 @@ class GQLCoreSchema:
                 intype = self._wrap_input_type(ptr, intype)
                 fields[name] = GraphQLInputField(intype)
 
-            elif (
-                isinstance(edb_target, s_scalars.ScalarType)
-                or isinstance(edb_target, s_types.Array)
-            ):
+            elif isinstance(edb_target, (s_scalars.ScalarType, s_types.Array)):
                 target = self._convert_edb_type(edb_target)
                 if target is None:
                     # don't expose this
@@ -875,10 +864,7 @@ class GQLCoreSchema:
 
                 fields[name] = GraphQLInputField(intype)
 
-            elif (
-                isinstance(edb_target, s_scalars.ScalarType)
-                or isinstance(edb_target, s_types.Array)
-            ):
+            elif isinstance(edb_target, (s_scalars.ScalarType, s_types.Array)):
                 target = self._convert_edb_type(edb_target)
                 if target is None or ptr.get_readonly(self.edb_schema):
                     # don't expose this
@@ -1404,17 +1390,9 @@ class GQLBaseType(metaclass=GQLTypeMeta):
         edb_base_name = str(edb_base.get_name(schema.edb_schema))
 
         # __typename
-        if name is None:
-            self._name = edb_base_name
-        else:
-            self._name = name
-
+        self._name = edb_base_name if name is None else name
         # determine module from name if not already specified
-        if '::' in self._name:
-            self._module = self._name.split('::', 1)[0]
-        else:
-            self._module = None
-
+        self._module = self._name.split('::', 1)[0] if '::' in self._name else None
         # what EdgeDB entity will be the root for queries, if any
         self._edb_base = edb_base
         self._schema = schema
@@ -1483,18 +1461,14 @@ class GQLBaseType(metaclass=GQLTypeMeta):
         if isinstance(self.edb_base, s_types.Array):
             el = self.edb_base.get_element_type(self.edb_schema)
             base_name = el.get_name(self.edb_schema)
-            assert isinstance(base_name, s_name.QualName)
-            return qlast.ObjectRef(
-                module=base_name.module,
-                name=base_name.name,
-            )
         else:
             base_name = self.edb_base.get_name(self.edb_schema)
-            assert isinstance(base_name, s_name.QualName)
-            return qlast.ObjectRef(
-                module=base_name.module,
-                name=base_name.name,
-            )
+
+        assert isinstance(base_name, s_name.QualName)
+        return qlast.ObjectRef(
+            module=base_name.module,
+            name=base_name.name,
+        )
 
     @property
     def edb_base_name(self) -> str:
@@ -1504,16 +1478,11 @@ class GQLBaseType(metaclass=GQLTypeMeta):
     def gql_typename(self) -> str:
         name = self.name
         module, shortname = name.split('::', 1)
-        if self.edb_base.is_view(self.edb_schema):
-            suffix = ''
-        else:
-            suffix = '_Type'
-
+        suffix = '' if self.edb_base.is_view(self.edb_schema) else '_Type'
         if module in {'default', 'std'}:
             return f'{shortname}{suffix}'
-        else:
-            assert module != '', 'gql_typename ' + module
-            return f'{module}__{shortname}{suffix}'
+        assert module != '', 'gql_typename ' + module
+        return f'{module}__{shortname}{suffix}'
 
     @property
     def schema(self) -> GQLCoreSchema:
@@ -1617,7 +1586,7 @@ class GQLBaseType(metaclass=GQLTypeMeta):
         assert isinstance(filterable, qlast.SelectQuery)
         shape = filterable.result
 
-        return eql, shape, filterable
+        return filterable, shape, filterable
 
     def get_field_template(
         self,
@@ -1697,10 +1666,7 @@ class GQLShadowType(GQLBaseType):
 
         ftype = self.get_field_type(name)
         # JSON fields are not shadowed
-        if ftype is None or ftype.is_json:
-            return False
-
-        return True
+        return ftype is not None and not ftype.is_json
 
     @property
     def is_enum(self) -> bool:

@@ -142,11 +142,10 @@ def connect_command(func):
         if password is False:
             cargs.allow_password_request = False
 
-        if password or password_from_stdin:
-            if password_from_stdin:
-                cargs.password = sys.stdin.readline().strip('\r\n')
-            else:
-                cargs.password = password_prompt()
+        if password_from_stdin:
+            cargs.password = sys.stdin.readline().strip('\r\n')
+        elif password:
+            cargs.password = password_prompt()
 
         if host is not None:
             cargs.host = host

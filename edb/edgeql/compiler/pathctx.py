@@ -129,14 +129,13 @@ def get_set_scope(
 ) -> Optional[irast.ScopeTreeNode]:
     if ir_set.path_scope_id is None:
         return None
-    else:
-        scope = ctx.path_scope.root.find_by_unique_id(ir_set.path_scope_id)
-        if scope is None:
-            raise errors.InternalServerError(
-                f'dangling scope pointer to node with uid'
-                f':{ir_set.path_scope_id} in {ir_set!r}'
-            )
-        return scope
+    scope = ctx.path_scope.root.find_by_unique_id(ir_set.path_scope_id)
+    if scope is None:
+        raise errors.InternalServerError(
+            f'dangling scope pointer to node with uid'
+            f':{ir_set.path_scope_id} in {ir_set!r}'
+        )
+    return scope
 
 
 def extend_path_id(

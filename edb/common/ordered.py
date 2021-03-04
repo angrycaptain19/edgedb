@@ -32,10 +32,7 @@ class OrderedSet(MutableSet[K]):
     map: Dict[K, None]
 
     def __init__(self, iterable: Optional[Iterable[K]] = None) -> None:
-        if iterable is not None:
-            self.map = {v: None for v in iterable}
-        else:
-            self.map = {}
+        self.map = {v: None for v in iterable} if iterable is not None else {}
 
     def add(self, item: K) -> None:
         self.map[item] = None

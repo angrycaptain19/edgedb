@@ -220,7 +220,7 @@ def get_source_context_as_json(
 ) -> Optional[str]:
     details: Optional[str]
     if expr.context:
-        details = json.dumps({
+        return json.dumps({
             # TODO(tailhook) should we add offset, utf16column here?
             'line': expr.context.start_point.line,
             'column': expr.context.start_point.column,
@@ -229,9 +229,7 @@ def get_source_context_as_json(
         })
 
     else:
-        details = None
-
-    return details
+        return None
 
 
 def is_type_intersection_reference(ir_expr: irast.Base) -> bool:
@@ -247,12 +245,7 @@ def is_type_intersection_reference(ir_expr: irast.Base) -> bool:
 
     ir_source = rptr.source
 
-    if ir_source.path_id.is_type_intersection_path():
-        source_is_type_intersection = True
-    else:
-        source_is_type_intersection = False
-
-    return source_is_type_intersection
+    return bool(ir_source.path_id.is_type_intersection_path())
 
 
 def collapse_type_intersection(
@@ -324,12 +317,13 @@ def contains_dml(stmt: irast.Base, *, skip_bindings: bool=False) -> bool:
     """Check whether a statement contains any DML in a subtree."""
     # TODO: Make this caching.
     visitor = ContainsDMLVisitor(skip_bindings=skip_bindings)
-    res = visitor.visit(stmt) is True
-    return res
+    return visitor.visit(stmt) is True
 
 
 def contains_set_of_op(ir: irast.Base) -> bool:
-    flt = (lambda n: isinstance(n, irast.Call)
-           and any(x == ft.TypeModifier.SetOfType
-                   for x in n.params_typemods))
+    flt = (
+        lambda n: isinstance(n, irast.Call)
+        and ft.TypeModifier.SetOfType in n.params_typemods
+    )
+
     return bool(ast.find_children(ir, flt, terminate_early=True))

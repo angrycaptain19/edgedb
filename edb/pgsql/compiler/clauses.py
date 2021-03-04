@@ -45,39 +45,37 @@ def fini_stmt(
         stmt: pgast.Query, ctx: context.CompilerContextLevel,
         parent_ctx: context.CompilerContextLevel) -> None:
 
-    if stmt is ctx.toplevel_stmt:
-        # Type rewrites go first.
-        stmt.ctes[:0] = list(ctx.type_ctes.values())
+    if stmt is not ctx.toplevel_stmt:
+        return
+    # Type rewrites go first.
+    stmt.ctes[:0] = list(ctx.type_ctes.values())
 
-        stmt.argnames = argmap = ctx.argmap
+    stmt.argnames = argmap = ctx.argmap
 
-        if not ctx.env.use_named_params:
-            # Adding unused parameters into a CTE
-            targets = []
-            for param in ctx.env.query_params:
-                if param.name in argmap:
-                    continue
-                if param.name.isdecimal():
-                    idx = int(param.name) + 1
-                else:
-                    idx = len(argmap) + 1
-                argmap[param.name] = pgast.Param(
-                    index=idx,
-                    required=param.required,
+    if not ctx.env.use_named_params:
+        # Adding unused parameters into a CTE
+        targets = []
+        for param in ctx.env.query_params:
+            if param.name in argmap:
+                continue
+            idx = int(param.name) + 1 if param.name.isdecimal() else len(argmap) + 1
+            argmap[param.name] = pgast.Param(
+                index=idx,
+                required=param.required,
+            )
+            targets.append(pgast.ResTarget(val=pgast.TypeCast(
+                arg=pgast.ParamRef(number=idx),
+                type_name=pgast.TypeName(
+                    name=pg_types.pg_type_from_ir_typeref(param.ir_type)
                 )
-                targets.append(pgast.ResTarget(val=pgast.TypeCast(
-                    arg=pgast.ParamRef(number=idx),
-                    type_name=pgast.TypeName(
-                        name=pg_types.pg_type_from_ir_typeref(param.ir_type)
-                    )
-                )))
-            if targets:
-                ctx.toplevel_stmt.ctes.append(
-                    pgast.CommonTableExpr(
-                        name="__unused_vars",
-                        query=pgast.SelectStmt(target_list=targets)
-                    )
+            )))
+        if targets:
+            ctx.toplevel_stmt.ctes.append(
+                pgast.CommonTableExpr(
+                    name="__unused_vars",
+                    query=pgast.SelectStmt(target_list=targets)
                 )
+            )
 
 
 def get_volatility_ref(

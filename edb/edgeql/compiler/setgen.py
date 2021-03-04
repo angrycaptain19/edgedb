@@ -222,13 +222,13 @@ def compile_path(expr: qlast.Path, *, ctx: context.ContextLevel) -> irast.Set:
     anchors = ctx.anchors
 
     if expr.partial:
-        if ctx.partial_path_prefix is not None:
-            path_tip = ctx.partial_path_prefix
-        else:
+        if ctx.partial_path_prefix is None:
             raise errors.QueryError(
                 'could not resolve partial path ',
                 context=expr.context)
 
+        else:
+            path_tip = ctx.partial_path_prefix
     computables = []
     path_sets = []
 

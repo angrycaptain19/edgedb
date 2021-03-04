@@ -529,96 +529,95 @@ def _cast_array(
         # Simple cast
         return _cast_to_ir(
             ir_set, el_cast, orig_stype, new_stype, ctx=ctx)
-    else:
-        pathctx.register_set_in_scope(ir_set, ctx=ctx)
+    pathctx.register_set_in_scope(ir_set, ctx=ctx)
 
-        with ctx.new() as subctx:
-            subctx.anchors = subctx.anchors.copy()
-            source_alias = subctx.aliases.get('a')
-            subctx.anchors[source_alias] = ir_set
+    with ctx.new() as subctx:
+        subctx.anchors = subctx.anchors.copy()
+        source_alias = subctx.aliases.get('a')
+        subctx.anchors[source_alias] = ir_set
 
-            unpacked = qlast.FunctionCall(
-                func=('__std__', 'array_unpack'),
-                args=[
-                    qlast.Path(
-                        steps=[qlast.ObjectRef(name=source_alias)],
-                    ),
-                ],
-            )
+        unpacked = qlast.FunctionCall(
+            func=('__std__', 'array_unpack'),
+            args=[
+                qlast.Path(
+                    steps=[qlast.ObjectRef(name=source_alias)],
+                ),
+            ],
+        )
 
-            enumerated = setgen.ensure_set(
-                dispatch.compile(
-                    qlast.FunctionCall(
-                        func=('__std__', 'enumerate'),
-                        args=[unpacked],
-                    ),
-                    ctx=subctx,
+        enumerated = setgen.ensure_set(
+            dispatch.compile(
+                qlast.FunctionCall(
+                    func=('__std__', 'enumerate'),
+                    args=[unpacked],
                 ),
                 ctx=subctx,
-            )
+            ),
+            ctx=subctx,
+        )
 
-            enumerated_alias = subctx.aliases.get('e')
-            subctx.anchors[enumerated_alias] = enumerated
-            enumerated_ref = qlast.Path(
-                steps=[qlast.ObjectRef(name=enumerated_alias)],
-            )
+        enumerated_alias = subctx.aliases.get('e')
+        subctx.anchors[enumerated_alias] = enumerated
+        enumerated_ref = qlast.Path(
+            steps=[qlast.ObjectRef(name=enumerated_alias)],
+        )
 
-            elements = qlast.FunctionCall(
-                func=('__std__', 'array_agg'),
-                args=[
-                    qlast.SelectQuery(
-                        result=qlast.TypeCast(
-                            expr=qlast.Path(
+        elements = qlast.FunctionCall(
+            func=('__std__', 'array_agg'),
+            args=[
+                qlast.SelectQuery(
+                    result=qlast.TypeCast(
+                        expr=qlast.Path(
+                            steps=[
+                                enumerated_ref,
+                                qlast.Ptr(
+                                    ptr=qlast.ObjectRef(
+                                        name='1',
+                                        direction='>',
+                                    ),
+                                ),
+                            ],
+                        ),
+                        type=typegen.type_to_ql_typeref(
+                            el_type,
+                            ctx=subctx,
+                        ),
+                        cardinality_mod=qlast.CardinalityModifier.Required,
+                    ),
+                    orderby=[
+                        qlast.SortExpr(
+                            path=qlast.Path(
                                 steps=[
                                     enumerated_ref,
                                     qlast.Ptr(
                                         ptr=qlast.ObjectRef(
-                                            name='1',
+                                            name='0',
                                             direction='>',
                                         ),
                                     ),
                                 ],
                             ),
-                            type=typegen.type_to_ql_typeref(
-                                el_type,
-                                ctx=subctx,
-                            ),
-                            cardinality_mod=qlast.CardinalityModifier.Required,
+                            direction=qlast.SortOrder.Asc,
                         ),
-                        orderby=[
-                            qlast.SortExpr(
-                                path=qlast.Path(
-                                    steps=[
-                                        enumerated_ref,
-                                        qlast.Ptr(
-                                            ptr=qlast.ObjectRef(
-                                                name='0',
-                                                direction='>',
-                                            ),
-                                        ),
-                                    ],
-                                ),
-                                direction=qlast.SortOrder.Asc,
-                            ),
-                        ],
-                    ),
-                ],
+                    ],
+                ),
+            ],
+        )
+
+        if el_type.contains_json(subctx.env.schema):
+            subctx.inhibit_implicit_limit = True
+
+        array_ir = dispatch.compile(elements, ctx=subctx)
+        assert isinstance(array_ir, irast.Set)
+
+        if direct_cast is not None:
+            ctx.env.schema, array_stype = s_types.Array.from_subtypes(
+                ctx.env.schema, [el_type])
+            return _cast_to_ir(
+                array_ir, direct_cast, array_stype, new_stype, ctx=ctx
             )
-
-            if el_type.contains_json(subctx.env.schema):
-                subctx.inhibit_implicit_limit = True
-
-            array_ir = dispatch.compile(elements, ctx=subctx)
-            assert isinstance(array_ir, irast.Set)
-
-            if direct_cast is not None:
-                ctx.env.schema, array_stype = s_types.Array.from_subtypes(
-                    ctx.env.schema, [el_type])
-                return _cast_to_ir(
-                    array_ir, direct_cast, array_stype, new_stype, ctx=ctx
-                )
-            else:
-                return array_ir
+        else:
+            return array_ir
 
 
 def _cast_array_literal(

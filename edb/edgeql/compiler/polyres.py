@@ -103,35 +103,34 @@ def find_callable(
         # Unabiguios resolution
         return matched
 
-    else:
-        # Ambiguous resolution, try to disambiguate by
-        # checking for total type distance.
-        type_dist = None
-        remaining = []
+    # Ambiguous resolution, try to disambiguate by
+    # checking for total type distance.
+    type_dist = None
+    remaining = []
 
-        for call in matched:
-            call_type_dist = 0
+    for call in matched:
+        call_type_dist = 0
 
-            for barg in call.args:
-                if barg.param is None:
-                    # Skip injected bitmask argument.
-                    continue
+        for barg in call.args:
+            if barg.param is None:
+                # Skip injected bitmask argument.
+                continue
 
-                paramtype = barg.param.get_type(ctx.env.schema)
-                arg_type_dist = barg.valtype.get_common_parent_type_distance(
-                    paramtype, ctx.env.schema)
-                call_type_dist += arg_type_dist
+            paramtype = barg.param.get_type(ctx.env.schema)
+            arg_type_dist = barg.valtype.get_common_parent_type_distance(
+                paramtype, ctx.env.schema)
+            call_type_dist += arg_type_dist
 
-            if type_dist is None:
-                type_dist = call_type_dist
-                remaining.append(call)
-            elif type_dist == call_type_dist:
-                remaining.append(call)
-            elif type_dist > call_type_dist:
-                type_dist = call_type_dist
-                remaining = [call]
+        if type_dist is None:
+            type_dist = call_type_dist
+            remaining.append(call)
+        elif type_dist == call_type_dist:
+            remaining.append(call)
+        elif type_dist > call_type_dist:
+            type_dist = call_type_dist
+            remaining = [call]
 
-        return remaining
+    return remaining
 
 
 def try_bind_call_args(

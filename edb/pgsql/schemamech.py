@@ -111,7 +111,7 @@ class ConstraintMech:
                 str(origin_subject.id))
 
             for ref in refs:
-                if ref.name != [subj_pgname] and ref.name != [orgsubj_pgname]:
+                if ref.name not in [[subj_pgname], [orgsubj_pgname]]:
                     raise ValueError(
                         f'unexpected node reference in '
                         f'ScalarType constraint: {".".join(ref.name)}'
@@ -123,10 +123,8 @@ class ConstraintMech:
         plain_expr = codegen.SQLSourceGenerator.to_source(sql_expr)
 
         if is_multicol:
-            chunks = []
+            chunks = [codegen.SQLSourceGenerator.to_source(elem) for elem in sql_expr.args]
 
-            for elem in sql_expr.args:
-                chunks.append(codegen.SQLSourceGenerator.to_source(elem))
         else:
             chunks = [plain_expr]
 
@@ -324,8 +322,7 @@ class SchemaDomainConstraint:
         return ops
 
     def alter_ops(self, orig_constr):
-        ops = dbops.CommandGroup()
-        return ops
+        return dbops.CommandGroup()
 
     def delete_ops(self):
         ops = dbops.CommandGroup()
@@ -442,9 +439,7 @@ def ptr_default_to_col_default(schema, ptr, expr):
         return None
 
     sql_expr = compiler.compile_ir_to_sql_tree(ir, singleton_mode=True)
-    sql_text = codegen.SQLSourceGenerator.to_source(sql_expr)
-
-    return sql_text
+    return codegen.SQLSourceGenerator.to_source(sql_expr)
 
 
 def get_ref_storage_info(schema, refs):
@@ -474,10 +469,13 @@ def get_ref_storage_info(schema, refs):
                 # This specialized pointer was derived specifically
                 # for the purposes of constraint expr compilation.
                 src = src.get_bases(schema).first(schema)
-        elif ptr.is_tuple_indirection():
-            refs.append(ref.rptr.source)
-            continue
-        elif ptr.is_type_intersection():
+        elif (
+            not ptr.is_link_property(schema)
+            and ptr.is_tuple_indirection()
+            or not ptr.is_link_property(schema)
+            and not ptr.is_tuple_indirection()
+            and ptr.is_type_intersection()
+        ):
             refs.append(ref.rptr.source)
             continue
         else:

@@ -107,15 +107,11 @@ def is_abstract(typeref: irast.TypeRef) -> bool:
 
 
 def is_persistent_tuple(typeref: irast.TypeRef) -> bool:
-    if is_tuple(typeref):
-        if typeref.material_type is not None:
-            material = typeref.material_type
-        else:
-            material = typeref
-
-        return material.in_schema
-    else:
+    if not is_tuple(typeref):
         return False
+
+    material = typeref if typeref.material_type is None else typeref.material_type
+    return material.in_schema
 
 
 def type_to_typeref(

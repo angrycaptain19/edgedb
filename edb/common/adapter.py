@@ -117,8 +117,7 @@ class Adapter(type):
 
                 if found and found not in seen:
                     result = found
-                    seen.add(found)
-
+                    seen.add(result)
         return result
 
     @classmethod

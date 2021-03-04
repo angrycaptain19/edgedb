@@ -236,15 +236,11 @@ WithBlockData = collections.namedtuple(
 
 class WithBlock(Nonterm):
     def reduce_WITH_WithDeclList(self, *kids):
-        aliases = []
-        for w in kids[1].val:
-            aliases.append(w)
+        aliases = [w for w in kids[1].val]
         self.val = WithBlockData(aliases=aliases)
 
     def reduce_WITH_WithDeclList_COMMA(self, *kids):
-        aliases = []
-        for w in kids[1].val:
-            aliases.append(w)
+        aliases = [w for w in kids[1].val]
         self.val = WithBlockData(aliases=aliases)
 
 

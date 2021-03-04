@@ -219,7 +219,7 @@ def fini_expression(
             context=srcctx,
         )
 
-    result = irast.Statement(
+    return irast.Statement(
         expr=ir,
         params=list(ctx.env.query_parameters.values()),
         views=ctx.view_nodes,
@@ -244,7 +244,6 @@ def fini_expression(
         ),
         type_rewrites={s.typeref.id: s for s in ctx.type_rewrites.values()},
     )
-    return result
 
 
 class FindPathScopes(ast_visitor.NodeVisitor):

@@ -151,9 +151,7 @@ def sort_ex(
                     try:
                         visit(n, weak_link=True)
                     except CycleError:
-                        if len(visiting_weak) == 0:
-                            pass
-                        else:
+                        if len(visiting_weak) != 0:
                             raise
                 for n in adj[item]:
                     visit(n, weak_link=weak_link)
@@ -163,9 +161,7 @@ def sort_ex(
                     order.append(item)
                     visited.add(item)
             except CycleError:
-                if len(visiting_weak) == 1:
-                    pass
-                else:
+                if len(visiting_weak) != 1:
                     raise
             finally:
                 visiting.remove(item)

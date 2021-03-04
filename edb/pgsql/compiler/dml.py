@@ -473,12 +473,10 @@ def get_dml_range(
                     clauses.compile_filter_clause(
                         ir_qual_expr, ir_qual_card, ctx=wctx))
 
-        range_cte = pgast.CommonTableExpr(
+        return pgast.CommonTableExpr(
             query=range_stmt,
             name=ctx.env.aliases.get('range')
         )
-
-        return range_cte
 
 
 def compile_iterator_ctes(
@@ -1235,48 +1233,47 @@ def process_link_update(
             # The pointer is OPTIONAL, no checks or further processing
             # is needed.
             return None
-        else:
-            # The pointer is REQUIRED, so we must take the result of
-            # the subtraction produced by the "delcte" above, apply it
-            # as a subtracting overlay, and re-compute the pointer relation
-            # to see if there are any newly created empty sets.
-            #
-            # The actual work is done via raise_on_null injection performed
-            # by "process_link_values()" below (hence "enforce_cardinality").
-            #
-            # The other part of this enforcement is in doing it when a
-            # target is deleted and the link policy is ALLOW. This is
-            # handled in _get_outline_link_trigger_proc_text in
-            # pgsql/delta.py.
+        # The pointer is REQUIRED, so we must take the result of
+        # the subtraction produced by the "delcte" above, apply it
+        # as a subtracting overlay, and re-compute the pointer relation
+        # to see if there are any newly created empty sets.
+        #
+        # The actual work is done via raise_on_null injection performed
+        # by "process_link_values()" below (hence "enforce_cardinality").
+        #
+        # The other part of this enforcement is in doing it when a
+        # target is deleted and the link policy is ALLOW. This is
+        # handled in _get_outline_link_trigger_proc_text in
+        # pgsql/delta.py.
 
-            # Turn `foo := <expr>` into just `foo`.
-            ptr_ref_set = irast.Set(
-                path_id=ir_set.path_id,
-                path_scope_id=ir_set.path_scope_id,
-                typeref=ir_set.typeref,
-                rptr=ir_set.rptr,
+        # Turn `foo := <expr>` into just `foo`.
+        ptr_ref_set = irast.Set(
+            path_id=ir_set.path_id,
+            path_scope_id=ir_set.path_scope_id,
+            typeref=ir_set.typeref,
+            rptr=ir_set.rptr,
+        )
+
+        with ctx.new() as subctx:
+            subctx.ptr_rel_overlays = ctx.ptr_rel_overlays.copy()
+            relctx.add_ptr_rel_overlay(
+                ptrref, 'except', delcte, ctx=subctx)
+
+            check_cte, _ = process_link_values(
+                ir_stmt=ir_stmt,
+                ir_expr=ptr_ref_set,
+                dml_rvar=dml_cte_rvar,
+                source_typeref=source_typeref,
+                target_is_scalar=target_is_scalar,
+                enforce_cardinality=True,
+                dml_cte=dml_cte,
+                iterator=iterator,
+                ctx=subctx,
             )
 
-            with ctx.new() as subctx:
-                subctx.ptr_rel_overlays = ctx.ptr_rel_overlays.copy()
-                relctx.add_ptr_rel_overlay(
-                    ptrref, 'except', delcte, ctx=subctx)
+            toplevel.ctes.append(check_cte)
 
-                check_cte, _ = process_link_values(
-                    ir_stmt=ir_stmt,
-                    ir_expr=ptr_ref_set,
-                    dml_rvar=dml_cte_rvar,
-                    source_typeref=source_typeref,
-                    target_is_scalar=target_is_scalar,
-                    enforce_cardinality=True,
-                    dml_cte=dml_cte,
-                    iterator=iterator,
-                    ctx=subctx,
-                )
-
-                toplevel.ctes.append(check_cte)
-
-            return check_cte
+        return check_cte
 
     cols = [pgast.ColumnRef(name=[col]) for col in specified_cols]
     conflict_cols = ['source', 'target']

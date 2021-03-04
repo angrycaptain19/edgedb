@@ -416,7 +416,8 @@ class ScopeTreeNode:
             # like type intersection, but we want to preserve the prefix
             # visibility information for the sake of possible optimizations.
             if (
-                not (is_lprop or prefix.is_linkprop_path())
+                not is_lprop
+                and not prefix.is_linkprop_path()
                 and not prefix.is_tuple_indirection_path()
             ):
                 parent = new_child
@@ -613,12 +614,8 @@ class ScopeTreeNode:
     def remove_descendants(self, path_id: pathid.PathId) -> None:
         """Remove all descendant nodes matching *path_id*."""
 
-        matching = set()
-
-        for node in self.descendants:
-            if (node.path_id is not None
-                    and _paths_equal(node.path_id, path_id, set())):
-                matching.add(node)
+        matching = {node for node in self.descendants if (node.path_id is not None
+                    and _paths_equal(node.path_id, path_id, set()))}
 
         for node in matching:
             node.remove()
@@ -753,11 +750,7 @@ class ScopeTreeNode:
                         factoring_fence=False,
                     )
 
-                if finfo is None:
-                    finfo = ans_finfo
-                else:
-                    finfo = finfo | ans_finfo
-
+                finfo = ans_finfo if finfo is None else finfo | ans_finfo
         return found, finfo
 
     def find_visible(self, path_id: pathid.PathId) -> Optional[ScopeTreeNode]:
@@ -768,11 +761,10 @@ class ScopeTreeNode:
         return self.find_visible(path_id) is not None
 
     def is_any_prefix_visible(self, path_id: pathid.PathId) -> bool:
-        for prefix in reversed(list(path_id.iter_prefixes())):
-            if self.find_visible(prefix) is not None:
-                return True
-
-        return False
+        return any(
+            self.find_visible(prefix) is not None
+            for prefix in reversed(list(path_id.iter_prefixes()))
+        )
 
     def find_child(
         self,
@@ -819,13 +811,14 @@ class ScopeTreeNode:
         self,
         path_id: pathid.PathId,
     ) -> List[ScopeTreeNodeWithPathId]:
-        matched = []
-        for descendant, dns, _ in self.strict_descendants_and_namespaces:
-            if (descendant.path_id is not None
-                    and _paths_equal(descendant.path_id, path_id, dns)):
-                matched.append(cast(ScopeTreeNodeWithPathId, descendant))
-
-        return matched
+        return [
+            cast(ScopeTreeNodeWithPathId, descendant)
+            for descendant, dns, _ in self.strict_descendants_and_namespaces
+            if (
+                descendant.path_id is not None
+                and _paths_equal(descendant.path_id, path_id, dns)
+            )
+        ]
 
     def find_descendant_and_ns(
         self,
@@ -909,18 +902,17 @@ class ScopeTreeNode:
             return ''
 
     def pdebugformat(self, fuller: bool=False) -> str:
-        if self.children:
-            child_formats = []
-            for c in self.children:
-                cf = c.pdebugformat()
-                if cf:
-                    child_formats.append(cf)
-
-            child_formats = sorted(child_formats)
-            children = textwrap.indent(',\n'.join(child_formats), '    ')
-            return f'"{self.debugname(fuller=fuller)}": {{\n{children}\n}}'
-        else:
+        if not self.children:
             return f'"{self.debugname(fuller=fuller)}"'
+        child_formats = []
+        for c in self.children:
+            cf = c.pdebugformat()
+            if cf:
+                child_formats.append(cf)
+
+        child_formats = sorted(child_formats)
+        children = textwrap.indent(',\n'.join(child_formats), '    ')
+        return f'"{self.debugname(fuller=fuller)}": {{\n{children}\n}}'
 
     def _set_parent(self, parent: Optional[ScopeTreeNode]) -> None:
         current_parent = self.parent

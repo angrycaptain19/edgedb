@@ -111,12 +111,10 @@ class Lexer:
 
             if cls.asbytes:
                 res.append(b'(?P<err>.)')
+                full_re = b' | '.join(res)
             else:
                 res.append('(?P<err>.)')
 
-            if cls.asbytes:
-                full_re = b' | '.join(res)
-            else:
                 full_re = ' | '.join(res)
             re_states[state] = re.compile(full_re, cls.RE_FLAGS)
 
@@ -221,11 +219,7 @@ class Lexer:
 
     def handle_error(self, txt, *,
                      exact_message=False, exc_type=UnknownTokenError):
-        if exact_message:
-            msg = txt
-        else:
-            msg = f"Unexpected '{txt}'"
-
+        msg = txt if exact_message else f"Unexpected '{txt}'"
         raise exc_type(
             msg, line=self.lineno, col=self.column, filename=self.filename)
 

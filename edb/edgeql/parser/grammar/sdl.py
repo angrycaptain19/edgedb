@@ -153,7 +153,7 @@ class SDLCommandBlock(Nonterm):
 
 class DotName(Nonterm):
     def reduce_ModuleName(self, *kids):
-        self.val = '.'.join(part for part in kids[0].val)
+        self.val = '.'.join(kids[0].val)
 
 
 class SDLProductionHelper:
@@ -204,11 +204,11 @@ def sdl_commands_block(parent, *commands, opt=True):
     # Merged command which has minimal ";"
     #
     # SDLCommandFull := SDLCommandShort ; | SDLCommandBlock
-    clsdict = {}
-    clsdict[f'reduce_{cmd_s.__name__}_SEMICOLON'] = \
-        SDLProductionHelper._passthrough
-    clsdict[f'reduce_{cmd_b.__name__}'] = \
-        SDLProductionHelper._passthrough
+    clsdict = {
+        f'reduce_{cmd_s.__name__}_SEMICOLON': SDLProductionHelper._passthrough,
+        f'reduce_{cmd_b.__name__}': SDLProductionHelper._passthrough,
+    }
+
     cmd = _new_nonterm(f'{parent}SDLCommandFull', clsdict=clsdict)
 
     # SDLCommandsList := SDLCommandFull [; SDLCommandFull ...]
@@ -223,26 +223,28 @@ def sdl_commands_block(parent, *commands, opt=True):
     #   { [ ; ] SDLCommandFull }
     #   { [ ; ] SDLCommandsList [ ; ]} |
     #   { [ ; ] SDLCommandsList [ ; ] SDLCommandFull }
-    clsdict = {}
-    clsdict[f'reduce_LBRACE_OptSemicolons_{cmd_s.__name__}_RBRACE'] = \
-        SDLProductionHelper._block
-    clsdict[f'reduce_LBRACE_OptSemicolons_{cmdlist.__name__}_' +
-            f'OptSemicolons_RBRACE'] = \
-        SDLProductionHelper._block2
-    clsdict[f'reduce_LBRACE_OptSemicolons_{cmdlist.__name__}_OptSemicolons_' +
-            f'{cmd_s.__name__}_RBRACE'] = \
-        SDLProductionHelper._block3
-    clsdict[f'reduce_LBRACE_OptSemicolons_RBRACE'] = \
-        SDLProductionHelper._empty
+    clsdict = {
+        f'reduce_LBRACE_OptSemicolons_{cmd_s.__name__}_RBRACE': SDLProductionHelper._block,
+        (
+            f'reduce_LBRACE_OptSemicolons_{cmdlist.__name__}_'
+            + f'OptSemicolons_RBRACE'
+        ): SDLProductionHelper._block2,
+        (
+            f'reduce_LBRACE_OptSemicolons_{cmdlist.__name__}_OptSemicolons_'
+            + f'{cmd_s.__name__}_RBRACE'
+        ): SDLProductionHelper._block3,
+        f'reduce_LBRACE_OptSemicolons_RBRACE': SDLProductionHelper._empty,
+    }
+
     _new_nonterm(f'{parent}SDLCommandsBlock', clsdict=clsdict)
 
     if opt is False:
         #   | Command
-        clsdict = {}
-        clsdict[f'reduce_{cmd_s.__name__}'] = \
-            SDLProductionHelper._singleton_list
-        clsdict[f'reduce_{cmd_b.__name__}'] = \
-            SDLProductionHelper._singleton_list
+        clsdict = {
+            f'reduce_{cmd_s.__name__}': SDLProductionHelper._singleton_list,
+            f'reduce_{cmd_b.__name__}': SDLProductionHelper._singleton_list,
+        }
+
         _new_nonterm(parent + 'SingleSDLCommandBlock', clsdict=clsdict)
 
 

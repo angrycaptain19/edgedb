@@ -90,45 +90,41 @@ class TraceContextBase:
         *,
         type: Optional[Type[qltracer.NamedObject]] = None
     ) -> s_name.QualName:
-        if isinstance(ref, qlast.ObjectRef):
-            if ref.module:
-                return s_name.QualName(module=ref.module, name=ref.name)
-            else:
-                qname = s_name.QualName(module=self.module, name=ref.name)
-                if type is None:
-                    return qname
-                else:
-                    # check if there's a name in default module
-                    # actually registered to the right type
-                    if isinstance(self.objects.get(qname), type):
-                        return qname
-                    else:
-                        return s_name.QualName('std', ref.name)
-        else:
+        if not isinstance(ref, qlast.ObjectRef):
             raise TypeError(
                 "ObjectRef expected "
                 "(got type {!r})".format(type(ref).__name__)
             )
-
-    def get_ref_name(self, ref: qlast.BaseObjectRef) -> s_name.QualName:
-        if isinstance(ref, qlast.ObjectRef):
-            if ref.module:
-                return s_name.QualName(module=ref.module, name=ref.name)
-
-            qname = s_name.QualName(module=self.module, name=ref.name)
-            if qname in self.objects:
+        if ref.module:
+            return s_name.QualName(module=ref.module, name=ref.name)
+        qname = s_name.QualName(module=self.module, name=ref.name)
+        if type is None:
+            return qname
+        else:
+            # check if there's a name in default module
+            # actually registered to the right type
+            if isinstance(self.objects.get(qname), type):
                 return qname
             else:
-                std_name = s_name.QualName(module="std", name=ref.name)
-                if self.schema.get(std_name, default=None) is not None:
-                    return std_name
-                else:
-                    return qname
-        else:
+                return s_name.QualName('std', ref.name)
+
+    def get_ref_name(self, ref: qlast.BaseObjectRef) -> s_name.QualName:
+        if not isinstance(ref, qlast.ObjectRef):
             raise TypeError(
                 "ObjectRef expected "
                 "(got type {!r})".format(type(ref).__name__)
             )
+        if ref.module:
+            return s_name.QualName(module=ref.module, name=ref.name)
+
+        qname = s_name.QualName(module=self.module, name=ref.name)
+        if qname in self.objects:
+            return qname
+        std_name = s_name.QualName(module="std", name=ref.name)
+        if self.schema.get(std_name, default=None) is not None:
+            return std_name
+        else:
+            return qname
 
     def get_fq_name(
         self,
@@ -292,10 +288,7 @@ def sdl_to_ddl(
     ddlgraph: DDLGraph = {}
     mods: List[qlast.DDLCommand] = []
 
-    ctx = LayoutTraceContext(
-        schema,
-        local_modules=frozenset(mod for mod in documents),
-    )
+    ctx = LayoutTraceContext(schema, local_modules=frozenset(documents))
 
     for module_name, declarations in documents.items():
         ctx.set_module(module_name)
@@ -682,9 +675,7 @@ def trace_ConcretePointer(
         deps.append(TypeDependency(texpr=node.target))
     elif isinstance(node.target, qlast.Expr):
         deps.append(ExprDependency(expr=node.target))
-    elif node.target is None:
-        pass
-    else:
+    elif node.target is not None:
         raise AssertionError(
             f'unexpected CreateConcretePointer.target: {node.target!r}')
 
@@ -785,11 +776,7 @@ def _register_item(
 
     name, fq_name = ctx.get_fq_name(decl)
 
-    if deps:
-        deps = set(deps)
-    else:
-        deps = set()
-
+    deps = set(deps) if deps else set()
     op = orig_op = copy.copy(decl)
 
     if ctx.depstack:
@@ -892,11 +879,7 @@ def _register_item(
                 deps |= _get_hard_deps(expr.texpr, ctx=ctx)
             elif isinstance(expr, ExprDependency):
                 qlexpr = expr.expr
-                if isinstance(expr, FunctionDependency):
-                    params = expr.params
-                else:
-                    params = {}
-
+                params = expr.params if isinstance(expr, FunctionDependency) else {}
                 tdeps = qltracer.trace_refs(
                     qlexpr,
                     schema=ctx.schema,
@@ -1126,18 +1109,16 @@ def _resolve_type_name(
     refname = ctx.get_ref_name(ref)
     local_obj = ctx.objects.get(refname)
     obj: qltracer.ObjectLike
-    if local_obj is not None:
-        assert isinstance(local_obj, tracer_type)
-        obj = local_obj
-    else:
-        obj = _resolve_schema_ref(
+    if local_obj is None:
+        return _resolve_schema_ref(
             refname,
             type=real_type,
             sourcectx=ref.context,
             ctx=ctx,
         )
 
-    return obj
+    assert isinstance(local_obj, tracer_type)
+    return local_obj
 
 
 def _get_tracer_and_real_type(

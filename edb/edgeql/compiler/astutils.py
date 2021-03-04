@@ -33,11 +33,7 @@ def extend_binop(
 ) -> qlast.Expr:
     exprlist = list(exprs)
 
-    if binop is None:
-        result = exprlist.pop(0)
-    else:
-        result = binop
-
+    result = exprlist.pop(0) if binop is None else binop
     for expr in exprlist:
         if expr is not None and expr is not result:
             result = qlast.BinOp(

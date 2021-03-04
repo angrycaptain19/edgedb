@@ -127,11 +127,8 @@ class Buffer:
                         break
                 elif code == DATA:
                     _len += len(item[1])
-                elif code == LINE_BREAK:
+                elif code in [LINE_BREAK, FOLDED_SPACE]:
                     _len += 1
-                elif code == FOLDED_SPACE:
-                    _len += 1
-
                 if _len > width:
                     return 0
 

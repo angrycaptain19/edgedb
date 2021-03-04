@@ -93,7 +93,7 @@ def needs_quoting(string):
 
 def qname(*parts):
     assert len(parts) <= 3, parts
-    return '.'.join([quote_ident(q) for q in parts])
+    return '.'.join(quote_ident(q) for q in parts)
 
 
 def quote_type(type_):
@@ -173,11 +173,7 @@ def edgedb_name_to_pg_name(name: str, prefix_length: int = 0) -> str:
 
 def convert_name(name, suffix='', catenate=True):
     schema = get_module_backend_name(name.get_module_name())
-    if suffix:
-        sname = f'{name.name}_{suffix}'
-    else:
-        sname = name.name
-
+    sname = f'{name.name}_{suffix}' if suffix else name.name
     dbname = edgedb_name_to_pg_name(sname)
 
     if catenate:

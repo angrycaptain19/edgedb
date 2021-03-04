@@ -57,8 +57,7 @@ class ConstraintCommon:
         return self._schema_constr_name
 
     def raw_constraint_name(self):
-        name = '{};{}'.format(self._constr_id, 'schemaconstr')
-        return name
+        return '{};{}'.format(self._constr_id, 'schemaconstr')
 
     def generate_extra(self, block):
         text = self.raw_constraint_name()
@@ -273,15 +272,13 @@ class AlterTableAddMultiConstraint(dbops.AlterTableAddConstraint):
                 chunk = f'ADD CONSTRAINT {name} {expr}'
                 chunks.append(chunk)
 
-            code = ', '.join(chunks)
+            return ', '.join(chunks)
         else:
             if isinstance(exprs, list):
                 exprs = exprs[0]
 
             name = self.constraint.constraint_name()
-            code = f'ADD CONSTRAINT {name} {exprs}'
-
-        return code
+            return f'ADD CONSTRAINT {name} {exprs}'
 
     def generate_extra(self, block, alter_table):
         comments = []
@@ -378,13 +375,11 @@ class AlterTableDropMultiConstraint(dbops.AlterTableDropConstraint):
                 chunk = f'DROP CONSTRAINT {name}'
                 chunks.append(chunk)
 
-            code = ', '.join(chunks)
+            return ', '.join(chunks)
 
         else:
             name = self.constraint.constraint_name()
-            code = f'DROP CONSTRAINT {name}'
-
-        return code
+            return f'DROP CONSTRAINT {name}'
 
 
 class AlterTableConstraintBase(dbops.AlterTableBaseMixin, dbops.CommandGroup):

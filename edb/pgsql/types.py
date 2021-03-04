@@ -130,11 +130,7 @@ def pg_type_from_scalar(
 
     is_enum = scalar.is_enum(schema)
 
-    if is_enum:
-        base = scalar
-    else:
-        base = get_scalar_base(schema, scalar)
-
+    base = scalar if is_enum else get_scalar_base(schema, scalar)
     column_type = base_type_name_map.get(scalar.id)
     if column_type:
         column_type = base
@@ -164,14 +160,13 @@ def pg_type_from_object(
     elif isinstance(obj, s_abc.Array):
         if obj.is_polymorphic(schema):
             return ('anyarray',)
+        tp = pg_type_from_object(
+            schema, obj.get_subtypes(schema)[0],
+            persistent_tuples=persistent_tuples)
+        if len(tp) == 1:
+            return (tp[0] + '[]',)
         else:
-            tp = pg_type_from_object(
-                schema, obj.get_subtypes(schema)[0],
-                persistent_tuples=persistent_tuples)
-            if len(tp) == 1:
-                return (tp[0] + '[]',)
-            else:
-                return (tp[0], tp[1] + '[]')
+            return (tp[0], tp[1] + '[]')
 
     elif isinstance(obj, s_objtypes.ObjectType):
         return ('uuid',)
@@ -193,25 +188,20 @@ def pg_type_from_ir_typeref(
                 or (irtyputils.is_abstract(ir_typeref.subtypes[0])
                     and irtyputils.is_scalar(ir_typeref.subtypes[0]))):
             return ('anyarray',)
+        tp = pg_type_from_ir_typeref(
+            ir_typeref.subtypes[0],
+            serialized=serialized,
+            persistent_tuples=persistent_tuples)
+        if len(tp) == 1:
+            return (tp[0] + '[]',)
         else:
-            tp = pg_type_from_ir_typeref(
-                ir_typeref.subtypes[0],
-                serialized=serialized,
-                persistent_tuples=persistent_tuples)
-            if len(tp) == 1:
-                return (tp[0] + '[]',)
-            else:
-                return (tp[0], tp[1] + '[]')
+            return (tp[0], tp[1] + '[]')
 
     elif irtyputils.is_anytuple(ir_typeref):
         return ('record',)
 
     elif irtyputils.is_tuple(ir_typeref):
-        if ir_typeref.material_type:
-            material = ir_typeref.material_type
-        else:
-            material = ir_typeref
-
+        material = ir_typeref.material_type or ir_typeref
         if persistent_tuples or material.in_schema:
             return common.get_tuple_backend_name(material.id, catenate=False)
         else:
@@ -221,11 +211,7 @@ def pg_type_from_ir_typeref(
         return ('anyelement',)
 
     else:
-        if ir_typeref.material_type:
-            material = ir_typeref.material_type
-        else:
-            material = ir_typeref
-
+        material = ir_typeref.material_type or ir_typeref
         if irtyputils.is_object(material):
             if serialized:
                 return ('record',)
@@ -340,11 +326,7 @@ class _PointerStorageInfo:
             else:
                 return None
 
-        if resolve_type:
-            column_type = cls._resolve_type(schema, pointer)
-        else:
-            column_type = None
-
+        column_type = cls._resolve_type(schema, pointer) if resolve_type else None
         result = super().__new__(cls)
 
         result.table_name = table
@@ -408,11 +390,7 @@ def get_ptrref_storage_info(
     is_lprop = ptrref.source_ptr is not None
 
     if source is None:
-        if is_lprop:
-            source = ptrref.source_ptr
-        else:
-            source = ptrref.out_source
-
+        source = ptrref.source_ptr if is_lprop else ptrref.out_source
         target = ptrref.out_target
 
     if is_lprop and str(ptrref.std_parent_name) == 'std::target':
@@ -428,10 +406,7 @@ def get_ptrref_storage_info(
     elif is_lprop:
         table = common.get_pointer_backend_name(source.id, source.name.module)
         table_type = 'link'
-        if ptrref.shortname.name == 'source':
-            col_name = 'source'
-        else:
-            col_name = str(ptrref.id)
+        col_name = 'source' if ptrref.shortname.name == 'source' else str(ptrref.id)
     else:
         if irtyputils.is_scalar(source):
             # This is a pseudo-link on an scalar (__type__)
